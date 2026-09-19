@@ -700,12 +700,15 @@ export default class TemplateManager {
         const drawMultResult = (
           templateMode === 1 ? 3
           : templateMode === 3 ? 3 // alternate
+          : templateMode === 4 ? 5
           : this.drawMult
         );
 
+        const customPoints = this.getCustomMaskPoints();
         const maskPointsOdd = (
           templateMode === 1 ? [[1, 1]]
           : templateMode === 3 ? [[0, 1], [1, 1], [2, 1]] // alternate
+          : templateMode === 4 ? customPoints
           : template.customMaskPoints(drawMultResult)
         );
         const maskPointsEven = (
@@ -1618,6 +1621,39 @@ export default class TemplateManager {
   async setTemplateMode(value) {
     this.userSettings.legacyDisplay = value;
     await this.storeUserSettings();
+  }
+
+  getCustomMaskPattern() {
+    const defaultPattern = [
+      false, false, true, false, false,
+      false, true, true, true, false,
+      true, true, true, true, true,
+      false, true, true, true, false,
+      false, false, true, false, false,
+    ];
+    const saved = this.userSettings?.customMaskPattern;
+    if (Array.isArray(saved) && saved.length === 25) {
+      return saved;
+    }
+    return defaultPattern;
+  }
+
+  async setCustomMaskPattern(pattern) {
+    this.userSettings.customMaskPattern = pattern;
+    await this.storeUserSettings();
+  }
+
+  getCustomMaskPoints() {
+    const pattern = this.getCustomMaskPattern();
+    const points = [];
+    for (let y = 0; y < 5; y++) {
+      for (let x = 0; x < 5; x++) {
+        if (pattern[y * 5 + x]) {
+          points.push([x, y]);
+        }
+      }
+    }
+    return points.length > 0 ? points : [[2, 2]];
   }
 
   /** A utility to determine whether the error map should be shown

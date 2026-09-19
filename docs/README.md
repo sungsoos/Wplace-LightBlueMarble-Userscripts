@@ -98,6 +98,11 @@
     <li>GM_getResourceText → 바뀜 (GM.getResourceText가 더이상 없음)</li>
   </ul>
 
+  - Catppuccin 테마 지원
+  - 사이드바 버튼으로 숨기기/보이기
+  - 더 나은 UI
+  - 커스텀 도안 패턴
+
   ... 번역이 되지 않은 변경사항을 보시려면 [여기를](https://github.com/t-wy/Wplace-BlueMarble-Userscripts#regarding-this-fork) 클릭해 주세요
 </p>
 

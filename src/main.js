@@ -1096,6 +1096,7 @@ async function buildOverlayMain() {
                 0: "십자 (기본)",
                 1: "점 (원본)",
                 3: "3x3 사각형",
+                4: "커스텀",
                 // maybe can support something like per-color pattern mode
               };
               Object.entries(templateModeList).forEach(([setValueStr, displayText]) => {
@@ -1107,11 +1108,41 @@ async function buildOverlayMain() {
               });
               select.addEventListener('change', async () => {
                 await templateManager.setTemplateMode(+select.value);
+                const patternContainer = document.getElementById('bm-custom-pattern-container');
+                if (patternContainer) {
+                  patternContainer.style.display = +select.value === 4 ? 'flex' : 'none';
+                }
                 instance.handleDisplayStatus(`템플릿 모드가 "${templateModeList[select.value]}"(으)로 변경되었습니다.`);
                 templateManager.createOverlayOnMap();
               })
             }).buildElement()
           .buildElement()
+          .addDiv({'id': 'bm-custom-pattern-container', 'style': `display: ${templateManager.getTemplateMode() === 4 ? 'flex' : 'none'};`}, (instance, container) => {
+            const label = document.createElement('small');
+            label.textContent = '커스텀 픽셀 패턴 (클릭하여 픽셀 설정):';
+            container.appendChild(label);
+
+            const grid = document.createElement('div');
+            grid.id = 'bm-custom-pattern-grid';
+
+            const pattern = templateManager.getCustomMaskPattern();
+            for (let i = 0; i < 25; i++) {
+              const cell = document.createElement('button');
+              cell.type = 'button';
+              cell.className = 'bm-pattern-cell' + (pattern[i] ? ' active' : '');
+              cell.onclick = async () => {
+                const currentPattern = templateManager.getCustomMaskPattern();
+                currentPattern[i] = !currentPattern[i];
+                cell.classList.toggle('active', currentPattern[i]);
+                await templateManager.setCustomMaskPattern(currentPattern);
+                if (templateManager.getTemplateMode() === 4) {
+                  templateManager.createOverlayOnMap();
+                }
+              };
+              grid.appendChild(cell);
+            }
+            container.appendChild(grid);
+          }).buildElement()
           .addCheckbox({'id': 'bm-show-zoom-buttons', 'textContent': '확대 배율 버튼 표시', 'checked': templateManager.areIntegerZoomButtonsShown()}, (instance, label, checkbox) => {
             checkbox.addEventListener('change', () => {
               templateManager.setIntegerZoomButtonsShown(checkbox.checked);
