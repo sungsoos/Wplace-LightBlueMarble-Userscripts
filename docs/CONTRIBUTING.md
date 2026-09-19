@@ -49,7 +49,7 @@
 </table>
 
 <h1>기여하기</h1>
-<a href="https://github.com/SwingTheVine/Wplace-BlueMarble/blob/main/LICENSE.txt" target="_blank" rel="noopener noreferrer"><img alt="소프트웨어 라이선스: MPL-2.0" src="https://img.shields.io/badge/Software_License-MPL--2.0-slateblue?style=flat"></a>
+<a href="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts//blob/main/LICENSE.txt" target="_blank" rel="noopener noreferrer"><img alt="소프트웨어 라이선스: MPL-2.0" src="https://img.shields.io/badge/Software_License-MPL--2.0-slateblue?style=flat"></a>
 <p>
   유저스크립트 "블루 마블"에 기여해 주셔서 감사합니다! 프로젝트를 좋아해 주시고 성장에 도움을 주고 싶어 하신다는 사실이 저에게 큰 의미가 됩니다. 아직 참여하지 않으셨다면 디스코드에 가입해 보세요. 그곳에서 유저스크립트에 관해 질문하고 피드백을 받을 수 있습니다. 더 많은 정보는 <a href="https://bluemarble.lol/" target="_blank" rel="noopener noreferrer">공식 블루 마블 웹사이트</a>에서도 확인할 수 있습니다.
   <br>
@@ -104,7 +104,7 @@
 
 <h2>할 수 없는 일</h2>
 <p>
-  지원 질문(예: "어떻게 설치하나요?" 또는 "<code>cssMangler</code>는 무엇을 하나요?")을 위해 <a href="https://github.com/SwingTheVine/Wplace-BlueMarble-Userscripts/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a>를 사용하지 마세요. GitHub 이슈 트래커는 버그 보고와 기능 요청에 사용합니다. 문제가 있어 도움이 필요하다면 <a href="https://discord.gg/tpeBPy46hf" target="_blank" rel="noopener noreferrer">디스코드</a>에서 질문하세요. <b>단, 기여를 시작하기 전에 이슈 트래커에 기능 요청을 먼저 제출해야 합니다.</b> 열심히 만든 고품질 기여가 프로젝트의 사명에 맞지 않는다는 이유로 거부되는 것만큼 안타까운 일은 없습니다. 먼저 물어보세요!
+  지원 질문(예: "어떻게 설치하나요?" 또는 "<code>cssMangler</code>는 무엇을 하나요?")을 위해 <a href="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a>를 사용하지 마세요. GitHub 이슈 트래커는 버그 보고와 기능 요청에 사용합니다. 문제가 있어 도움이 필요하다면 <a href="https://discord.gg/tpeBPy46hf" target="_blank" rel="noopener noreferrer">디스코드</a>에서 질문하세요. <b>단, 기여를 시작하기 전에 이슈 트래커에 기능 요청을 먼저 제출해야 합니다.</b> 열심히 만든 고품질 기여가 프로젝트의 사명에 맞지 않는다는 이유로 거부되는 것만큼 안타까운 일은 없습니다. 먼저 물어보세요!
 </p>
 <p>
   선의로 기여해 주세요. 잘못된 코드나 주석이 포함된 풀 리퀘스트, 또는 모드에 피해를 주는 풀 리퀘스트는 거부합니다.
@@ -112,7 +112,7 @@
 
 <h2>가이드라인</h2>
 <ul>
-  <li>기여를 시작하기 <i>전에</i> 항상 <a href="https://github.com/SwingTheVine/Wplace-BlueMarble-Userscripts/issues/new/choose" target="_blank" rel="noopener noreferrer">기능 요청</a>을 제출하고 작업 허가를 받으세요. 기여가 거부될 경우 시간을 절약할 수 있습니다. 철자 오류 수정 같은 작은 기여에는 기능 요청이 필요하지 않습니다.</li>
+  <li>기여를 시작하기 <i>전에</i> 항상 <a href="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/issues/new/choose" target="_blank" rel="noopener noreferrer">기능 요청</a>을 제출하고 작업 허가를 받으세요. 기여가 거부될 경우 시간을 절약할 수 있습니다. 철자 오류 수정 같은 작은 기여에는 기능 요청이 필요하지 않습니다.</li>
   <li><a href="https://github.com/SwingTheVine/.github/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer">행동 강령</a>을 따르세요. 여기에는 기여 내용과 커뮤니티에서 소통하는 방식이 모두 포함됩니다.</li>
   <li>변경 사항을 설명하는 명확한 메시지를 작성하세요. "몇 가지를 추가했습니다"로는 무엇이 변경되었는지 설명할 수 <i>없습니다</i>.</li>
   <li>기능이 다르면 풀 리퀘스트도 분리하세요. 템플릿과 현지화(i18n)를 하나의 풀 리퀘스트로 제출했는데 현지화를 거부하게 되면, 같은 풀 리퀘스트에 포함되어 있다는 이유로 템플릿 코드도 함께 거부됩니다. 서로 다른 기능이므로 별도의 풀 리퀘스트로 제출해야 합니다.</li>
@@ -139,8 +139,8 @@
 <h2>기여하는 방법</h2>
 <p>
   <ol>
-    <li>모든 <a href="https://github.com/SwingTheVine/Wplace-BlueMarble/blob/main/docs/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">기여 가이드라인</a>을 읽으세요.</li>
-    <li>기여하고 싶다면 <a href="https://github.com/SwingTheVine/Wplace-BlueMarble/issues/new/choose" target="_blank" rel="noopener noreferrer">여기</a>에 요청을 제출하세요.</li>
+    <li>모든 <a href="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">기여 가이드라인</a>을 읽으세요.</li>
+    <li>기여하고 싶다면 <a href="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/issues/new/choose" target="_blank" rel="noopener noreferrer">여기</a>에 요청을 제출하세요.</li>
     <li>기여 작업을 시작할 허가를 받았다면 기기에 개발 환경을 설정하세요.</li>
     <li>프로젝트를 포크하세요.</li>
     <li>개발 환경에 포크를 다운로드하세요.</li>
@@ -329,24 +329,19 @@ classDiagram
 
 <h2>개발 환경</h2>
 <p>
-  다음은 SwingTheVine이 블루 마블을 개발할 때 사용하는 환경입니다. 반드시 똑같은 환경을 사용할 필요는 없으며 참고용으로 제공됩니다.
+  다음은 sungsoos가 블루 마블을 개발할 때 사용하는 환경입니다. 반드시 똑같은 환경을 사용할 필요는 없으며 참고용으로 제공됩니다.
 
   <h3>IDE</h3>
   Visual Studio Code<br>
-  <code>버전: 1.102.3</code><br>
+  <code>버전: 1.137.0</code><br>
 
   <h3>브라우저</h3>
-  Google Chrome<br>
-  버전: <code>138.0.7204.184 (Official Build) (64-bit)</code><br>
-  TamperMonkey 버전: <code>5.3.3</code>
+  Zen Browser<br>
+  버전: <code>1.22.1b (공식 빌드) (64 비트) (Sine Mods 설치됨)</code><br>
+  Violentmonkey 버전: <code>2.49.0</code>
 
   <h3>운영 체제</h3>
-  Windows 10 Home<br>
-  버전: <code>22H2</code><br>
-  OS 빌드:	<code>19045.6093</code><br>
-  프로세서: <code>Intel Core i7-9750H CPU @ 2.60GHz</code><br>
-  RAM: <code>16.0 GB</code><br>
-  저장 장치: <code>932 GB SSD Samsung SSD 970 EVO Plus 1TB, 238 GB SSD HFM256GDJTNG-8310A</code><br>
-  그래픽 카드: <code>NVIDIA GeForce GTX 1660 Ti (6 GB)</code><br>
+  EndeavourOS x86_64<br>
+  버전: <code>[현재 EndeavourOS 버전명]</code><br>
   시스템 유형: <code>64비트 운영 체제</code>
 </p>

@@ -1,0 +1,79 @@
+name: 범프, 빌드, 릴리즈
+
+on:
+  push:
+    branches:
+      - custom-improve
+  workflow_dispatch:
+
+
+jobs:
+  # Builds the code
+  # This is bundling, obfuscating, version bumping, etc.
+  build:
+    permissions:
+      contents: write
+    
+    runs-on: ubuntu-latest
+
+    outputs:
+      CURRENT_VERSION: ${{ steps.get_version.outputs.current_version }}
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 노드 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 의존성 설치
+        run: npm install
+
+      # - name: Update userscript version
+      #   run: |
+      #     npm version minor --no-git-tag-version
+      #     node build/update-version.js
+      # nope, this branch follows upstream version, don't mess it up
+
+      - name: 유저스크립트 빌드
+        run: npm run build
+
+      - name: 현재 버전 가져오기
+        id: get_version
+        run: |
+          current_version=$(jq -r '.version' package.json)
+          echo "Current version: $current_version"
+          echo "current_version=$current_version" >> $GITHUB_OUTPUT
+
+      - name: 최신 태그 가져오기 (v 접두사 없이)
+        id: get_latest_tag
+        run: |
+          latest_tag=$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases=false | head -n 1 | awk '{print $1}')
+          latest_tag_no_v=${latest_tag#v}
+          echo "latest_tag_no_v=$latest_tag_no_v" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 버전 배지 업데이트
+        run: |
+          current_version="${{ steps.get_version.outputs.current_version }}"
+          latest_tag="${{ steps.get_latest_tag.outputs.latest_tag_no_v }}"
+          if [ -f "docs/README.md" ]; then
+            echo "README.md exists. Modifying..."
+            sed -i \
+              -e 's|\(%EC%B5%9C%EC%8B%A0%20%EB%B2%84%EC%A0%84-\)[^-\ ]*\(-lightblue\)|\1'"$current_version"'\2|' \
+              docs/README.md
+          else
+            echo "README.md was not found. Skipping..."
+          fi
+      
+      - name: 압축률 계산 및 배지 업데이트
+        run: |
+          dist_size=$(find dist -type f -exec cat {} + | wc -c)
+          src_size=$(find src dist/assets -type f -exec cat {} + | wc -c)
+          percentage=$(awk "BEGIN {printf \"%.2f\", 100 - ($dist_size * 100) / $src_size}")
+          echo "Compression: $percentage"
+          badge_url="https://img.shields.io/badge/%EC%95%95%EC%B6%95%EB%A5%A0-${percentage}%25-blue"
+          sed -i -E 's#https://img.shields.io/badge/%EC%95%95%EC%B6%95%EB%A5%A0-[^"]*#'"$badge_url"'#' docs/README.md
