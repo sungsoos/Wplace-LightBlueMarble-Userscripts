@@ -1,0 +1,740 @@
+
+
+/** Sanitizes HTML to display as plain-text.
+ * This prevents some Cross Site Scripting (XSS).
+ * This is handy when you are displaying user-made data, and you *must* use innerHTML.
+ * @param {string} text - The text to sanitize
+ * @returns {string} HTML escaped string
+ * @since 0.44.2
+ * @example
+ * const paragraph = document.createElement('p');
+ * paragraph.innerHTML = escapeHTML('<u>Foobar.</u>');
+ * // Output:
+ * // (Does not include the paragraph element)
+ * // (Output is not HTML formatted)
+ * <p>
+ *   "<u>Foobar.</u>"
+ * </p>
+ */
+export function escapeHTML(text) {
+  const div = document.createElement('div'); // Creates a div
+  div.textContent = text; // Puts the text in a PLAIN-TEXT property
+  return div.innerHTML; // Returns the HTML property of the div
+}
+
+/** Converts the server tile-pixel coordinate system to the displayed tile-pixel coordinate system.
+ * @param {string[]} tile - The tile to convert (as an array like ["12", "124"])
+ * @param {string[]} pixel - The pixel to convert (as an array like ["12", "124"])
+ * @returns {number[]} [tile, pixel]
+ * @since 0.42.4
+ * @example
+ * console.log(serverTPtoDisplayTP(['12', '123'], ['34', '567'])); // [34, 3567]
+ */
+export function serverTPtoDisplayTP(tile, pixel) {
+  return [((parseInt(tile[0]) % 4) * 1000) + parseInt(pixel[0]), ((parseInt(tile[1]) % 4) * 1000) + parseInt(pixel[1])];
+}
+
+/** Negative-Safe Modulo. You can pass negative numbers into this.
+ * @param {number} a - The first number
+ * @param {number} b - The second number
+ * @returns {number} Result
+ * @author osuplace
+ * @since 0.55.8
+ */
+export function negativeSafeModulo(a, b) {
+  return (a % b + b) % b;
+}
+
+/** Bypasses terser's stripping of console function calls.
+ * This is so the non-obfuscated code will contain debugging console calls, but the distributed version won't.
+ * However, the distributed version needs to call the console somehow, so this wrapper function is how.
+ * This is the same as `console.log()`.
+ * @param {...any} args - Arguments to be passed into the `log()` function of the Console
+ * @since 0.58.9
+ */
+export function consoleLog(...args) {((consoleLog) => consoleLog(...args))(console.log);}
+
+/** Bypasses terser's stripping of console function calls.
+ * This is so the non-obfuscated code will contain debugging console calls, but the distributed version won't.
+ * However, the distributed version needs to call the console somehow, so this wrapper function is how.
+ * This is the same as `console.error()`.
+ * @param {...any} args - Arguments to be passed into the `error()` function of the Console
+ * @since 0.58.13
+ */
+export function consoleError(...args) {((consoleError) => consoleError(...args))(console.error);}
+
+/** Bypasses terser's stripping of console function calls.
+ * This is so the non-obfuscated code will contain debugging console calls, but the distributed version won't.
+ * However, the distributed version needs to call the console somehow, so this wrapper function is how.
+ * This is the same as `console.warn()`.
+ * @param {...any} args - Arguments to be passed into the `warn()` function of the Console
+ * @since 0.58.13
+ */
+export function consoleWarn(...args) {((consoleWarn) => consoleWarn(...args))(console.warn);}
+
+/** Encodes a number into a custom encoded string.
+ * @param {number} number - The number to encode
+ * @param {string} encoding - The characters to use when encoding
+ * @since 0.65.2
+ * @returns {string} Encoded string
+ * @example
+ * const encode = '012abcABC'; // Base 9
+ * console.log(numberToEncoded(0, encode)); // 0
+ * console.log(numberToEncoded(5, encode)); // c
+ * console.log(numberToEncoded(15, encode)); // 1A
+ * console.log(numberToEncoded(12345, encode)); // 1BCaA
+ */
+export function numberToEncoded(number, encoding) {
+
+  if (number === 0) return encoding[0]; // End quickly if number equals 0. No special calculation needed
+
+  let result = ''; // The encoded string
+  const base = encoding.length; // The number of characters used, which determines the base
+
+  // Base conversion algorithm
+  while (number > 0) {
+    result = encoding[number % base] + result; // Find's the character's encoded value determined by the modulo of the base
+    number = Math.floor(number / base); // Divides the number by the base so the next iteration can find the next modulo character
+  }
+
+  return result; // The final encoded string
+}
+
+/** Converts a Uint8 array to base64 using the browser's built-in binary to ASCII function
+ * @param {Uint8Array} uint8 - The Uint8Array to convert
+ * @returns {Uint8Array} The base64 encoded Uint8Array
+ * @since 0.72.9
+ */
+export function uint8ToBase64(uint8) {
+  let binary = '';
+  for (let i = 0; i < uint8.length; i++) {
+    binary += String.fromCharCode(uint8[i]);
+  }
+  return btoa(binary); // Binary to ASCII
+}
+
+/** Decodes a base 64 encoded Uint8 array using the browser's built-in ASCII to binary function
+ * @param {Uint8Array} base64 - The base 64 encoded Uint8Array to convert
+ * @returns {Uint8Array} The decoded Uint8Array
+ * @since 0.72.9
+ */
+export function base64ToUint8(base64) {
+  const binary = atob(base64); // ASCII to Binary
+  const array = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    array[i] = binary.charCodeAt(i);
+  }
+  return array;
+}
+
+/** Obtain the width and height of a base 64 encoded PNG
+ * @param {Uint8Array} base64 - The base 64 encoded Uint8Array to convert
+ * @returns {number[]} The image dimension
+ * @since 0.87.5
+ */
+export function base64PNGSize(base64) {
+  const sizeData = base64.slice(0, 32);
+  if (sizeData.length !== 32) throw new Error('Invalid PNG size data');
+  const sizeDataDecoded = base64ToUint8(sizeData);
+  if (sizeDataDecoded.length !== 24) throw new Error('Invalid PNG size data')
+  const imgWidth = (sizeDataDecoded[16] << 24) | (sizeDataDecoded[17] << 16) | (sizeDataDecoded[18] << 8) | sizeDataDecoded[19];
+  const imgHeight = (sizeDataDecoded[20] << 24) | (sizeDataDecoded[21] << 16) | (sizeDataDecoded[22] << 8) | sizeDataDecoded[23];
+  return [imgWidth, imgHeight];
+}
+
+/** Returns the coordinate input fields
+ * @returns {Element[]} The 4 coordinate Inputs
+ * @since 0.74.0
+ */
+export function selectAllCoordinateInputs(document) {
+  coords = [];
+
+  coords.push(document.querySelector('#bm-input-tx'));
+  coords.push(document.querySelector('#bm-input-ty'));
+  coords.push(document.querySelector('#bm-input-px'));
+  coords.push(document.querySelector('#bm-input-py'));
+
+  return coords;
+}
+
+/** The color palette used by wplace.live
+ * @since 0.78.0
+ * @examples
+ * import utils from 'src/utils.js';
+ * console.log(utils[5]?.name); // "White"
+ * console.log(utils[5]?.rgb); // [255, 255, 255]
+ */
+export const colorpalette = [
+  { "id": 0,  "premium": false, "name": "Transparent",   "rgb": [0, 0, 0] },
+  { "id": 1,  "premium": false, "name": "Black",         "rgb": [0, 0, 0] },
+  { "id": 2,  "premium": false, "name": "Dark Gray",     "rgb": [60, 60, 60] },
+  { "id": 3,  "premium": false, "name": "Gray",          "rgb": [120, 120, 120] },
+  { "id": 4,  "premium": false, "name": "Light Gray",    "rgb": [210, 210, 210] },
+  { "id": 5,  "premium": false, "name": "White",         "rgb": [255, 255, 255] },
+  { "id": 6,  "premium": false, "name": "Deep Red",      "rgb": [96, 0, 24] },
+  { "id": 7,  "premium": false, "name": "Red",           "rgb": [237, 28, 36] },
+  { "id": 8,  "premium": false, "name": "Orange",        "rgb": [255, 127, 39] },
+  { "id": 9,  "premium": false, "name": "Gold",          "rgb": [246, 170, 9] },
+  { "id": 10, "premium": false, "name": "Yellow",        "rgb": [249, 221, 59] },
+  { "id": 11, "premium": false, "name": "Light Yellow",  "rgb": [255, 250, 188] },
+  { "id": 12, "premium": false, "name": "Dark Green",    "rgb": [14, 185, 104] },
+  { "id": 13, "premium": false, "name": "Green",         "rgb": [19, 230, 123] },
+  { "id": 14, "premium": false, "name": "Light Green",   "rgb": [135, 255, 94] },
+  { "id": 15, "premium": false, "name": "Dark Teal",     "rgb": [12, 129, 110] },
+  { "id": 16, "premium": false, "name": "Teal",          "rgb": [16, 174, 166] },
+  { "id": 17, "premium": false, "name": "Light Teal",    "rgb": [19, 225, 190] },
+  { "id": 18, "premium": false, "name": "Dark Blue",     "rgb": [40, 80, 158] },
+  { "id": 19, "premium": false, "name": "Blue",          "rgb": [64, 147, 228] },
+  { "id": 20, "premium": false, "name": "Cyan",          "rgb": [96, 247, 242] },
+  { "id": 21, "premium": false, "name": "Indigo",        "rgb": [107, 80, 246] },
+  { "id": 22, "premium": false, "name": "Light Indigo",  "rgb": [153, 177, 251] },
+  { "id": 23, "premium": false, "name": "Dark Purple",   "rgb": [120, 12, 153] },
+  { "id": 24, "premium": false, "name": "Purple",        "rgb": [170, 56, 185] },
+  { "id": 25, "premium": false, "name": "Light Purple",  "rgb": [224, 159, 249] },
+  { "id": 26, "premium": false, "name": "Dark Pink",     "rgb": [203, 0, 122] },
+  { "id": 27, "premium": false, "name": "Pink",          "rgb": [236, 31, 128] },
+  { "id": 28, "premium": false, "name": "Light Pink",    "rgb": [243, 141, 169] },
+  { "id": 29, "premium": false, "name": "Dark Brown",    "rgb": [104, 70, 52] },
+  { "id": 30, "premium": false, "name": "Brown",         "rgb": [149, 104, 42] },
+  { "id": 31, "premium": false, "name": "Beige",         "rgb": [248, 178, 119] },
+  { "id": 32, "premium": true,  "name": "Medium Gray",   "rgb": [170, 170, 170] },
+  { "id": 33, "premium": true,  "name": "Dark Red",      "rgb": [165, 14, 30] },
+  { "id": 34, "premium": true,  "name": "Light Red",     "rgb": [250, 128, 114] },
+  { "id": 35, "premium": true,  "name": "Dark Orange",   "rgb": [228, 92, 26] },
+  { "id": 36, "premium": true,  "name": "Light Tan",     "rgb": [214, 181, 148] },
+  { "id": 37, "premium": true,  "name": "Dark Goldenrod","rgb": [156, 132, 49] },
+  { "id": 38, "premium": true,  "name": "Goldenrod",     "rgb": [197, 173, 49] },
+  { "id": 39, "premium": true,  "name": "Light Goldenrod","rgb": [232, 212, 95] },
+  { "id": 40, "premium": true,  "name": "Dark Olive",    "rgb": [74, 107, 58] },
+  { "id": 41, "premium": true,  "name": "Olive",         "rgb": [90, 148, 74] },
+  { "id": 42, "premium": true,  "name": "Light Olive",   "rgb": [132, 197, 115] },
+  { "id": 43, "premium": true,  "name": "Dark Cyan",     "rgb": [15, 121, 159] },
+  { "id": 44, "premium": true,  "name": "Light Cyan",    "rgb": [187, 250, 242] },
+  { "id": 45, "premium": true,  "name": "Light Blue",    "rgb": [125, 199, 255] },
+  { "id": 46, "premium": true,  "name": "Dark Indigo",   "rgb": [77, 49, 184] },
+  { "id": 47, "premium": true,  "name": "Dark Slate Blue","rgb": [74, 66, 132] },
+  { "id": 48, "premium": true,  "name": "Slate Blue",    "rgb": [122, 113, 196] },
+  { "id": 49, "premium": true,  "name": "Light Slate Blue","rgb": [181, 174, 241] },
+  { "id": 50, "premium": true,  "name": "Light Brown",   "rgb": [219, 164, 99] },
+  { "id": 51, "premium": true,  "name": "Dark Beige",    "rgb": [209, 128, 81] },
+  { "id": 52, "premium": true,  "name": "Light Beige",   "rgb": [255, 197, 165] },
+  { "id": 53, "premium": true,  "name": "Dark Peach",    "rgb": [155, 82, 73] },
+  { "id": 54, "premium": true,  "name": "Peach",         "rgb": [209, 128, 120] },
+  { "id": 55, "premium": true,  "name": "Light Peach",   "rgb": [250, 182, 164] },
+  { "id": 56, "premium": true,  "name": "Dark Tan",      "rgb": [123, 99, 82] },
+  { "id": 57, "premium": true,  "name": "Tan",           "rgb": [156, 132, 107] },
+  { "id": 58, "premium": true,  "name": "Dark Slate",    "rgb": [51, 57, 65] },
+  { "id": 59, "premium": true,  "name": "Slate",         "rgb": [109, 117, 141] },
+  { "id": 60, "premium": true,  "name": "Light Slate",   "rgb": [179, 185, 209] },
+  { "id": 61, "premium": true,  "name": "Dark Stone",    "rgb": [109, 100, 63] },
+  { "id": 62, "premium": true,  "name": "Stone",         "rgb": [148, 140, 107] },
+  { "id": 63, "premium": true,  "name": "Light Stone",   "rgb": [205, 197, 158] }
+];
+// All entries include fixed id (index-based) and premium flag by design.
+
+export const rgbToMeta = new Map();
+export const rgbToKey = new Map();
+const transparent = colorpalette.find(color => (color?.name || '').toLowerCase() === 'transparent');
+for (const {id, premium, name, rgb} of [
+  ...colorpalette,
+  // Ensure template #deface marker is treated as allowed (maps to Transparent color)
+  // Map #deface to Transparent meta for UI naming and ID continuity
+  {id: transparent.id, premium: transparent.premium, name: transparent.name, rgb: [222, 250, 206]}
+]) {
+  const [r, g, b] = rgb;
+  const colorKey = `${r},${g},${b}`;
+  rgbToMeta.set(colorKey, {id, premium, name, rgb});
+  // anti-fingerprinting
+  rgbToKey.set(`${r    },${g    },${b    }`, colorKey);
+  rgbToKey.set(`${r    },${g    },${b ^ 1}`, colorKey);
+  rgbToKey.set(`${r    },${g ^ 1},${b    }`, colorKey);
+  rgbToKey.set(`${r    },${g ^ 1},${b ^ 1}`, colorKey);
+  rgbToKey.set(`${r ^ 1},${g    },${b    }`, colorKey);
+  rgbToKey.set(`${r ^ 1},${g    },${b ^ 1}`, colorKey);
+  rgbToKey.set(`${r ^ 1},${g ^ 1},${b    }`, colorKey);
+  rgbToKey.set(`${r ^ 1},${g ^ 1},${b ^ 1}`, colorKey);
+}
+// Special "other" key for non-palette colors
+// Map other key to Other meta for UI naming and ID continuity
+const keyOther = 'other';
+rgbToKey.set('other', keyOther);
+rgbToMeta.set(keyOther, { id: 'other', premium: false, name: 'Other' });
+
+/** Releases the canvas content to free up memory.
+ * @since 0.85.5
+ */
+export function cleanUpCanvas(canvas) {
+  canvas.width = 0;
+  canvas.height = 0;
+  if (canvas.constructor === HTMLCanvasElement) canvas.remove(); // not for OffscreenCanvas
+  canvas = null;
+}
+
+/**
+ * A browser helper function to find the gadget exposed in the DOM tree
+ * @since 0.85.9
+ * @deprecated only for demo purpose
+ */
+function findGadget(condition, depth=10) {
+  const seen = new Set();
+  const allElements = [...document.querySelectorAll("*")];
+  function search(parent, path, element, maxDepth) {
+    if (condition(element)) {
+      return [element, parent, path];
+    }
+    if (maxDepth === 0) {
+      return null;
+    }
+    if (element && typeof element === "object") {
+      if (Array.isArray(element)) {
+        for (const [index, value] of Object.entries(element)) {
+          if (seen.has(value)) continue;
+          seen.add(value);
+          const searchResult = search(parent, path + "[" + index + "]", value, maxDepth - 1);
+          if (searchResult !== null) return searchResult;
+        }
+      } else {
+        for (const [key, value] of Object.entries(element)) {
+          if (seen.has(value)) continue;
+          seen.add(value);
+          const searchResult = search(parent, path + "." + key, value, maxDepth - 1);
+          if (searchResult !== null) return searchResult;
+        }
+      }
+    }
+    return null;
+  }
+  for (const element of allElements) {
+    const searchResult = search(element, "$0.__click", element.__click, depth);
+    if (searchResult !== null) return searchResult;
+  }
+  return null;
+}
+
+/** Get raw coordinates from the BM overlay
+ * @since 0.85.28
+ */
+function getOverlayCoordsRaw() {
+  const tx = document.querySelector('#bm-input-tx')?.value || '';
+  const ty = document.querySelector('#bm-input-ty')?.value || '';
+  const px = document.querySelector('#bm-input-px')?.value || '';
+  const py = document.querySelector('#bm-input-py')?.value || '';
+  return [[tx, ty], [px, py]];
+}
+
+/** Get coordinates from the BM overlay
+ * @since 0.85.20
+ */
+export function getOverlayCoords() {
+  const rawCoords = getOverlayCoordsRaw();
+  const tx = Number(rawCoords[0][0]);
+  const ty = Number(rawCoords[0][1]);
+  const px = Number(rawCoords[1][0]);
+  const py = Number(rawCoords[1][1]);
+  return [[tx, ty], [px, py]];
+}
+
+/** Check if the BM overlay coordinates are actually filled
+ * @since 0.85.20
+ */
+export function areOverlayCoordsFilledAndValid() {
+  const rawCoords = getOverlayCoordsRaw();
+  const parsedCoords = getOverlayCoords();
+  if (
+    rawCoords.some(
+      coords => coords.some(
+        coord => coord === ''
+      )
+    )
+  ) return false;
+  if (
+    parsedCoords.some(
+      coords => coords.some(
+        coord => isNaN(coord) || coord < 0
+      )
+    )
+  ) return false;
+  if (parsedCoords[0][0] > 2048) return false;
+  if (parsedCoords[0][1] > 2048) return false;
+  if (parsedCoords[1][0] > 1000) return false;
+  if (parsedCoords[1][1] > 1000) return false;
+  return true;
+}
+
+/** Available sorting options
+ * @since 0.85.23
+ * @examples
+ * The function parameter is (rgb, enabled count, painted enabled count)
+ */
+export const sortByOptions = {
+  "total": ([rgb, paintedCount, totalCount]) => totalCount,
+  "painted": ([rgb, paintedCount, totalCount]) => paintedCount,
+  "remaining": ([rgb, paintedCount, totalCount]) => totalCount - paintedCount,
+  "painted%": ([rgb, paintedCount, totalCount]) => paintedCount / (totalCount === 0 ? 1 : totalCount),
+  "color#": ([rgb, paintedCount, totalCount]) => {
+    if (rgb === "other") return 361; // Force After All Colors
+    if (rgb === "#deface") return -1; // Force Before All Colors
+    const tMeta = rgbToMeta.get(rgb);
+    if (tMeta && typeof tMeta.id === 'number') return tMeta.id;
+    return 361; // Force After All Colors
+  },
+  "hue": ([rgb, paintedCount, totalCount]) => {
+    if (rgb === "other") return 361; // Force After All Colors
+    if (rgb === "#deface") return -1; // Force Before All Colors
+    const [r, g, b] = rgb.split(',').map(Number);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+    if (delta === 0) return 361 + r; // Grayscale: Force After All Colors
+    if (max === r) {
+      return ((((g - b) / delta) + 6) % 6) * 60;
+    } else if (max === g) {
+      return (((b - r) / delta) + 2) * 60;
+    } else {
+      return (((r - g) / delta) + 4) * 60;
+    }
+  },
+  "luminance": ([rgb, paintedCount, totalCount]) => {
+    if (rgb === "other") return 2; // Force After All Colors
+    if (rgb === "#deface") return 0; // Force Before All Colors
+    const [r, g, b] = rgb.split(',').map(Number);
+    return (r * 0.2126 + g * 0.7152 + b * 0.0722) / 255; // Range: 0-1
+  },
+};
+
+export const sortByDisplayNames = {
+  total: "총합",
+  painted: "칠해짐",
+  remaining: "남음",
+  "painted%": "칠해짐 퍼센트",
+  "color#": "색 #",
+  hue: "색상",
+  luminance: "명도",
+};
+
+/** Copy the specified text to Clipboard
+ * @param {string} text
+ * @since 0.85.28
+ */
+export function copyToClipboard(text) {
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(text);
+  } else {
+    var temp = document.createElement("textArea");
+    temp.innerHTML = text;
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand('copy');
+    document.body.removeChild(temp);
+  }
+}
+
+/** Calculate the top left and size of the image to export
+ * The dimensions are inclusive (e.g. 11 for x: [0, 10])
+ * @since 0.85.28
+ */
+export function calculateTopLeftAndSize(coords1, coords2) {
+  const xs = [
+    (coords1[0][0] % 2048) * 1000 + (coords1[1][0] % 1000),
+    (coords2[0][0] % 2048) * 1000 + (coords2[1][0] % 1000),
+  ];
+  const ys = [
+    (coords1[0][1] % 2048) * 1000 + (coords1[1][1] % 1000),
+    (coords2[0][1] % 2048) * 1000 + (coords2[1][1] % 1000),
+  ];
+  const top = Math.min(ys[0], ys[1]);
+  const height = Math.abs(ys[0] - ys[1]) + 1;
+  const rawWidth = Math.abs(xs[0] - xs[1]) + 1;
+  const earthWrap = rawWidth * 2 > 2048 * 1000;
+  const left = earthWrap ? Math.max(xs[0], xs[1]) : Math.min(xs[0], xs[1]);
+  const width = earthWrap ? (2048 * 1000 - rawWidth + 2) : rawWidth;
+  return [[left, top], [width, height]];
+}
+
+/** Test if the browser support canvas size of the specified dimensions
+ * @param {number} width
+ * @param {number} height
+ * @since 0.85.28
+ */
+export function testCanvasSize(width, height) {
+  // Check if the browser support canvas size of the specified dimensions
+  let canvas = new OffscreenCanvas(width, height);
+  const context = canvas.getContext('2d');
+  context.fillRect(width - 1, height - 1, 1, 1);
+  const result = context.getImageData(width - 1, height - 1, 1, 1).data[3] !== 0;
+  // Release canvas
+  cleanUpCanvas(canvas);
+  canvas = null;
+  return result;
+}
+
+/** Test if the browser uses anti-fingerprinting mechanisms
+ * @since 0.85.43
+ */
+export function testAntiFingerprint() {
+  // Check if the browser support canvas size of the specified dimensions
+  const testSize = 100;
+  let canvas = new OffscreenCanvas(testSize, testSize);
+  const context = canvas.getContext('2d');
+  context.fillStyle = "rgba(255, 255, 255, 1)";
+  context.fillRect(0, 0, testSize, testSize);
+  const imageData = context.getImageData(0, 0, testSize, testSize);
+  const result = imageData.data.some(e => e !== 255);
+  // Release canvas
+  cleanUpCanvas(canvas);
+  canvas = null;
+  return result;
+}
+
+/** Fetch the tile image
+ * @param {number} tx
+ * @param {number} ty
+ * @since 0.85.28
+ */
+export function downloadTile(tx, ty) {
+  const remoteURL1 = "https://backend.wplace.live/files/s0/tiles/" + (tx % 2048) + "/" + ty + ".png";
+  const remoteURL2 = "https://backend.wplace.live/tile/" + (tx % 2048) + "/" + ty + ".png"; // new URL
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = function() {
+      resolve(img);
+    };
+    img.onerror = function(error) {
+      if (img.src === remoteURL1) {
+        img.src = remoteURL2;
+        return;
+      };
+      reject(error);
+    }
+    img.src = remoteURL1;
+  })
+}
+
+/** Get the currently selected color
+ * @return {number}
+ * @since 0.85.37
+ */
+export function getCurrentColor() {
+  const currentColor = Number(localStorage.getItem("selected-color")) ?? 0;
+  if (isNaN(currentColor) || !isFinite(currentColor) || currentColor < 0 || currentColor >= 64) return 0;
+  return currentColor;
+}
+
+/** Do an async sleep to prevent UI blocking
+ * @param {number} delay
+ * @since 0.85.43
+ * @deprecated currently does not feel the need to use so
+ */
+export function sleep(delay = 0) {
+  return new Promise(resolve => setTimeout(resolve, delay));
+}
+
+/** Use Bresenham's line algorithm to join two points
+ * @since 0.86.13
+ */
+export function* plotLine([x0, y0], [x1, y1]) {
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+
+  while (true) {
+    yield [x0, y0];
+    if (x0 === x1 && y0 === y1) break;
+
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y0 += sy;
+    }
+  }
+}
+
+/** Use Bresenham's line algorithm to create a bitmap that joins two points
+ * @since 0.86.13
+ */
+export function lineBitmap([x0, y0], [x1, y1], [r, g, b]) {
+  if (Math.abs(x1 - x0) * 2 > 2048000) {
+    if (x1 > x0) {
+      x0 += 2048000;
+    } else {
+      x1 += 2048000;
+    }
+  }
+  const minX = Math.min(x0, x1);
+  const minY = Math.min(y0, y1);
+  const maxX = Math.max(x0, x1);
+  const maxY = Math.max(y0, y1);
+
+  const width  = maxX - minX + 1;
+  const height = maxY - minY + 1;
+
+  const data = new Uint8ClampedArray(width * height * 4);
+  const image = new ImageData(data, width, height);
+
+  // draw line
+  for (const [x, y] of plotLine([x0, y0], [x1, y1])) {
+    const bx = x - minX;
+    const by = y - minY;
+    const idx = (by * width + bx) * 4;
+
+    data[idx + 0] = r;
+    data[idx + 1] = g;
+    data[idx + 2] = b;
+    data[idx + 3] = 255;
+  }
+
+  return {
+    imageData: image,
+    offsetX: minX,
+    offsetY: minY
+  };
+}
+
+/** Determine the rounded distance between two points
+ * @since 0.86.16
+ */
+export function midPointDistance([x0, y0], [x1, y1]) {
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const r2 = dx * dx + dy * dy;
+  let y = Math.ceil(Math.sqrt(r2));
+  let d = (y + y - 1) * (y + y - 1) - 4 * r2; // (2x)^2 + (2y - 1)^2 - r^2
+  if (d >= 0) { // midpoint is outside the circle
+    --y;
+    d -= 8 * y; // (2y - 1)^2 - (2y + 1)^2
+  }
+  return {
+    "d": d,
+    "y": y
+  }
+}
+
+/** Use Midpoint circle algorithm to create a circle centered at [x0, y0]
+ * @since 0.86.16
+ */
+export function* plotCircle([x0, y0], [x1, y1]) {
+  let {d, y} = midPointDistance([x0, y0], [x1, y1]);
+  yield [x0, y0 + y];
+  if (y === 0) return;
+  yield [x0, y0 - y];
+  yield [x0 + y, y0];
+  yield [x0 - y, y0];
+  let x = 1;
+  while (x < y) {
+    d += 8 * x - 4 // 2x^2 - (2(x - 1))^2
+    if (d >= 0) {
+      --y;
+      d -= 8 * y;
+    }
+    yield [x0 + x, y0 + y];
+    yield [x0 + x, y0 - y];
+    yield [x0 - x, y0 + y];
+    yield [x0 - x, y0 - y];
+    if (x == y) break;
+    yield [x0 + y, y0 + x];
+    yield [x0 + y, y0 - x];
+    yield [x0 - y, y0 + x];
+    yield [x0 - y, y0 - x];
+    ++x;
+  }
+}
+
+/** Use Midpoint circle algorithm to create a bitmap that joins two points
+ Math.min（y0, y1）
+ */
+export function circleBitmap([x0, y0], [x1, y1], [r, g, b]) {
+  if (Math.abs(x1 - x0) * 2 > 2048000) {
+    if (x1 > x0) {
+      x0 += 2048000;
+    } else {
+      x1 += 2048000;
+    }
+  }
+  let {d, y} = midPointDistance([x0, y0], [x1, y1]);
+  const minX = (x0 + 2048000 - y) % 2048000;
+  const minY = Math.max(0, y0 - y);
+  const actualX = minX + y;
+  const actualX1 = x1 + (actualX - x0);
+  const maxX = actualX + y;
+  const maxY = Math.min(y0 + y, 2048000 - 1);
+
+  const width  = maxX - minX + 1;
+  const height = maxY - minY + 1;
+
+  const data = new Uint8ClampedArray(width * height * 4);
+  const image = new ImageData(data, width, height);
+
+  // draw line
+  for (const [x, y] of plotCircle([actualX, y0], [actualX1, y1])) {
+    const bx = x - minX;
+    const by = y - minY;
+    if (bx < 0 || bx >= width) continue;
+    if (by < 0 || by >= height) continue;
+    const idx = (by * width + bx) * 4;
+
+    data[idx + 0] = r;
+    data[idx + 1] = g;
+    data[idx + 2] = b;
+    data[idx + 3] = 255;
+  }
+
+  return {
+    imageData: image,
+    offsetX: minX,
+    offsetY: minY
+  };
+}
+
+/** Convert tile coordinates to a string
+ * @param {number[]} coordsTile - The tile coordinates
+ * @returns {string}
+ * @since 0.87.12
+ */
+export function calculateTileKey(coordsTile) {
+  return coordsTile[0].toString().padStart(4, '0') + ',' + coordsTile[1].toString().padStart(4, '0');
+}
+
+/** Count pixel colors in both TM.#parseBlueMarble and T.createTemplateTiles
+ * @param {ImageDataArray} inspectData - The image data to inspect
+ * @param {number} imageWidth
+ * @param {number} imageHeight
+ * @param {Map<string, number>} paletteMap - The palette map to store the pixel count
+ * @param {number} shreadSize
+ * @param {number} shreadCenter
+ * @since 0.87.13
+ */
+export function countPixels(inspectData, imageWidth, imageHeight, paletteMap, shreadSize = 1, shreadCenter = 0) {
+  let required = 0;
+  let deface = 0;
+  for (let y = shreadCenter; y < imageHeight; y += shreadSize) {
+    for (let x = shreadCenter; x < imageWidth; x += shreadSize) {
+      const idx = (y * imageWidth + x) * 4;
+      const r = inspectData[idx];
+      const g = inspectData[idx + 1];
+      const b = inspectData[idx + 2];
+      const a = inspectData[idx + 3];
+      if (a < 64) { continue; } // Ignored transparent pixel
+      if (
+        ((r ^ 0xde) & 0xfe) === 0 &&
+        ((g ^ 0xfa) & 0xfe) === 0 &&
+        ((b ^ 0xce) & 0xfe) === 0
+      ) { deface++; }
+      // this key also includes #deface as "222,250,206"
+      const tempKey = `${r},${g},${b}`;
+      const key = rgbToKey.get(tempKey) ?? 'other';
+      required++;
+      paletteMap.set(key, (paletteMap.get(key) || 0) + 1);
+    }
+  }
+  return {
+    required,
+    deface
+  };
+}

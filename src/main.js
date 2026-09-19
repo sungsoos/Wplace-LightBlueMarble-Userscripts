@@ -1,0 +1,2068 @@
+/** @file The main file. Everything in the userscript is executed from here.
+ * @since 0.0.0
+ */
+import "./polyfill.js";
+import Overlay from './Overlay.js';
+// import Observers from './observers.js';
+import ApiManager from './apiManager.js';
+import TemplateManager from './templateManager.js';
+import { consoleLog, consoleWarn, selectAllCoordinateInputs, rgbToMeta, getOverlayCoords, sortByOptions, sortByDisplayNames, getCurrentColor } from './utils.js';
+import { getCenterGeoCoords, getPixelPerWplacePixel, forceRefreshTiles, removeLayer, themeList, setTheme, isMapTilerLoaded, teleportToTileCoords, teleportToGeoCoords, coordsTileCoordsToGeoCoords, coordsGeoCoordsToTileCoords, doAfterMapFound, panMap, setZoom, getCurrentTileSize} from './utilsMaptiler.js';
+// import { getCenterGeoCoords, addTemplate } from './utilsMaptiler.js';
+
+const name = GM_info.script.name.toString(); // Name of userscript
+const version = GM_info.script.version.toString(); // Version of userscript
+const consoleStyle = 'color: cornflowerblue;'; // The styling for the console logs
+// const CSS_BM_File = "https://raw.githubusercontent.com/t-wy/Wplace-BlueMarble-Userscripts/refs/heads/custom-improve/dist/BlueMarble.user.css";
+
+/** Injects code into the client
+ * This code will execute outside of TamperMonkey's sandbox
+ * @param {*} callback - The code to execute
+ * @since 0.11.15
+ */
+function inject(callback) {
+    const script = document.createElement('script');
+    script.setAttribute('bm-name', name); // Passes in the name value
+    script.setAttribute('bm-cStyle', consoleStyle); // Passes in the console style value
+    script.textContent = `(${callback})();`;
+    // script.textContent = `setTimeout(${callback}, 1000);`; // For debugging the case when there is delay when starting the script
+    document.documentElement?.appendChild(script);
+    script.remove();
+}
+
+/** What code to execute instantly in the client (webpage) to spy on fetch calls.
+ * This code will execute outside of TamperMonkey's sandbox.
+ * @since 0.11.15
+ */
+inject(() => {
+
+  const script = document.currentScript; // Gets the current script HTML Script Element
+  const name = script?.getAttribute('bm-name') || 'Blue Marble'; // Gets the name value that was passed in. Defaults to "Blue Marble" if nothing was found
+  const consoleStyle = script?.getAttribute('bm-cStyle') || ''; // Gets the console style value that was passed in. Defaults to no styling if nothing was found
+  const fetchedBlobQueue = new Map(); // Blobs being processed
+
+  // intercept 
+  // const originalBroadcastChannel_onmessage = window.BroadcastChannel.prototype.onmessage;
+  // function wrapped(...args) {
+  //   console.log("BroadcastChannel onmessage", args);
+  //   return originalBroadcastChannel_onmessage.apply(this, args);
+  // }
+  // window.BroadcastChannel.prototype.onmessage = wrapped;
+
+  window.addEventListener('message', (event) => {
+    const { source, endpoint, blobID, blobData, blink } = event.data;
+
+    const elapsed = Date.now() - blink;
+
+    // Since this code does not run in the userscript, we can't use consoleLog().
+    console.groupCollapsed(`%c${name}%c: ${fetchedBlobQueue.size} Recieved IMAGE message about blob "${blobID}"`, consoleStyle, '');
+    console.log(`Blob fetch took %c${String(Math.floor(elapsed/60000)).padStart(2,'0')}:${String(Math.floor(elapsed/1000) % 60).padStart(2,'0')}.${String(elapsed % 1000).padStart(3,'0')}%c MM:SS.mmm`, consoleStyle, '');
+    console.log(fetchedBlobQueue);
+    console.groupEnd();
+
+    // The modified blob won't have an endpoint, so we ignore any message without one.
+    if ((source == 'blue-marble') && !!blobID && !!blobData && !endpoint) {
+
+      const callback = fetchedBlobQueue.get(blobID); // Retrieves the blob based on the UUID
+
+      // If the blobID is a valid function...
+      if (typeof callback === 'function') {
+
+        callback(blobData); // ...Retrieve the blob data from the blobID function
+      } else {
+        // ...else the blobID is unexpected. We don't know what it is, but we know for sure it is not a blob. This means we ignore it.
+
+        consoleWarn(`%c${name}%c: Attempted to retrieve a blob (%s) from queue, but the blobID was not a function! Skipping...`, consoleStyle, '', blobID);
+      }
+
+      fetchedBlobQueue.delete(blobID); // Delete the blob from the queue, because we don't need to process it again
+    }
+  });
+
+  // Spys on "spontaneous" fetch requests made by the client
+  const originalFetch = window.fetch; // Saves a copy of the original fetch
+
+  // Overrides fetch
+  window.fetch = async function(...args) {
+
+    const blink = Date.now(); // Current time
+
+    const response = await originalFetch.apply(this, args); // Sends a fetch
+    const cloned = response.clone(); // Makes a copy of the response
+
+    // Retrieves the endpoint name. Unknown endpoint = "ignore"
+    const endpointName = ((args[0] instanceof Request) ? args[0]?.url : args[0]) || 'ignore';
+
+    // Check Content-Type to only process JSON
+    const contentType = cloned.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      // Since this code does not run in the userscript, we can't use consoleLog().
+      console.log(`%c${name}%c: Sending JSON message about endpoint "${endpointName}"`, consoleStyle, '');
+      // Sends a message about the endpoint it spied on
+      if (endpointName.endsWith("/tile/random")) {
+        // modify the response to send to desired coordinate
+
+        return new Promise((resolve) => {
+          const blobUUID = crypto.randomUUID(); // Generates a random UUID
+          fetchedBlobQueue.set(blobUUID, (blobProcessed) => {
+            // The response that triggers when the blob is finished processing
+
+            // Creates a new response
+            resolve(new Response(blobProcessed, {
+              headers: cloned.headers,
+              status: cloned.status,
+              statusText: cloned.statusText
+            }));
+
+            // Since this code does not run in the userscript, we can't use consoleLog().
+            console.log(`%c${name}%c: ${fetchedBlobQueue.size} Processed blob "${blobUUID}"`, consoleStyle, '');
+          });
+
+          cloned.json()
+          .then(jsonData => {
+            window.postMessage({
+              source: 'blue-marble',
+              endpoint: endpointName,
+              blobID: blobUUID,
+              jsonData: jsonData,
+              blink: blink
+            }, '*');
+          })
+          .catch(err => {
+            console.error(`%c${name}%c: Failed to parse JSON: `, consoleStyle, '', err);
+          });
+        });
+      } if (endpointName.includes("/s0/pixel/") && endpointName.includes("?x=") && endpointName.includes("&y=") && cloned.status === 400) {
+        // try to fix the JSON response
+        return new Promise((resolve, reject) => {
+          const cloned2 = response.clone();
+          cloned2.text().then(text => {
+            const errorPrefix = '{"error":"Invalid x","status":400}';
+            if (text.startsWith(errorPrefix)) {
+              const fixedPayload = text.slice(errorPrefix.length);
+              console.error("Fixed", fixedPayload);
+              try {
+                const actualPayload = JSON.parse(fixedPayload);
+                console.error("actualPayload", actualPayload);
+                window.postMessage({
+                  source: 'blue-marble',
+                  endpoint: endpointName,
+                  jsonData: actualPayload,
+                  blink: blink
+                }, '*');
+
+                // Creates a new response
+                resolve(new Response(fixedPayload, {
+                  headers: cloned.headers,
+                  status: 200,
+                  statusText: 'OK'
+                }));
+              } catch (err) {
+                console.error(`%c${name}%c: Failed to parse JSON: `, consoleStyle, '', err);
+                // Return the original 400 response
+                resolve(response);
+              }
+            } else {
+              // Return the original 400 response
+              resolve(response);
+            }
+          }).catch(err => {
+            console.error(`%c${name}%c: Failed to get Content: `, consoleStyle, '', err);
+            // Return the original 400 response
+            resolve(response);
+          });
+        });
+      } else {
+        cloned.json()
+        .then(jsonData => {
+          window.postMessage({
+            source: 'blue-marble',
+            endpoint: endpointName,
+            jsonData: jsonData,
+            blink: blink
+          }, '*');
+        })
+        .catch(err => {
+          console.error(`%c${name}%c: Failed to parse JSON: `, consoleStyle, '', err);
+        });
+      }
+    } else if (contentType.includes('image/') && (!endpointName.includes('openfreemap') && !endpointName.includes('maps'))) {
+      // Fetch custom for all images but opensourcemap
+
+      const blob = await cloned.blob(); // The original blob
+
+      // Since this code does not run in the userscript, we can't use consoleLog().
+      console.log(`%c${name}%c: ${fetchedBlobQueue.size} Sending IMAGE message about endpoint "${endpointName}"`, consoleStyle, '');
+
+      // Send the received blob
+      window.postMessage({
+        source: 'blue-marble',
+        endpoint: endpointName,
+        lastModified: cloned.headers.get("Last-Modified"),
+        blobData: blob,
+        blink: blink
+      });
+    }
+
+    return response; // Returns the original response
+  };
+
+  const hookedMapFuncs = {
+    "values": Map.prototype.values
+  };
+  const hookedMapValues = function (...args) {
+    const iter = Reflect.apply(hookedMapFuncs["values"], this, args);
+    return {
+      [Symbol.iterator]() { return this; },
+      next() {
+        const r = iter.next();
+        if (!r["done"]) {
+            const x = r["value"];
+            if (x?.["maps"] instanceof Set) {
+                for (const y of x["maps"]) {
+                    if (y?.["flyTo"]) {
+                        document.head["__bmmap"] = y;
+                        restoreMapPrototype();
+                        break;
+                    }
+                }
+            } else if (x?.["_map"]?.["flyTo"]) {
+              document.head["__bmmap"] = x?.["_map"];
+              restoreMapPrototype();
+            }
+        }
+        return r;
+      }
+    };
+  };
+  const restoreMapPrototype = function () {
+    for (const key in hookedMapFuncs) {
+      Map.prototype[key] = hookedMapFuncs[key];
+    }
+  };
+  Map.prototype.values = hookedMapValues;
+});
+
+// Imports the CSS file from dist folder on github
+// fetch(CSS_BM_File).then(cssOverlay => cssOverlay.text()).then(GM.addStyle);
+GM.addStyle("<placeholder CSS>");
+
+// CONSTRUCTORS
+const overlayMain = new Overlay(name, version); // Constructs a new Overlay object for the main overlay
+const templateManager = new TemplateManager(name, version, overlayMain); // Constructs a new TemplateManager object
+const apiManager = new ApiManager(templateManager); // Constructs a new ApiManager object
+
+overlayMain.setApiManager(apiManager); // Sets the API manager
+
+GM.getValue('bmTemplates', '{}').then(async storageTemplatesValue => {
+  const userSettingsValue = await GM.getValue('bmUserSettings', '{}');
+  let userSettings;
+  try {
+    userSettings = JSON.parse(userSettingsValue);
+  } catch {
+    userSettings = {};
+  }
+  console.log(userSettings);
+  console.log(Object.keys(userSettings).length);
+  if (Object.keys(userSettings).length == 0) {
+    const uuid = crypto.randomUUID(); // Generates a random UUID
+    console.log(uuid);
+    templateManager.setUserSettings({
+      'uuid': uuid,
+      'hideLockedColors': false,
+      'progressBarEnabled': true,
+      'hideCompletedColors': false,
+      'sortBy': 'total-desc',
+      'anchor': 'lt', // Top left
+      'smartPlace': false, // Hidden in settings
+      'memorySavingMode': false,
+      'eventEnabled': false,
+      'eventProvider': '',
+      'eventClaimedShown': true,
+      'eventUnavailableShown': true,
+      'onlyCurrentColorShown': false,
+      'themeOverridden': false,
+      'currentTheme': '',
+      'hideStatus': false,
+      'hideTemplates': false,
+      'isLegacyDisplay': false, // now used as the template display mode
+      'showErrorMap': false,
+      'showOnlyEnabledColorsErrorMap': false, // Hidden in settings
+      'showIntegerZoom': false,
+      'enableKeybinds': false,
+      'lineTemplateButton': false, // Hidden in settings
+    });
+    templateManager.storeUserSettings();
+  } else {
+    templateManager.setUserSettings(userSettings);
+  }
+
+  // load templates after user settings
+  let storageTemplates;
+  try {
+    storageTemplates = JSON.parse(storageTemplatesValue);
+  } catch {
+    storageTemplates = {};
+  }
+
+  console.log(storageTemplates);
+  templateManager.importJSON(storageTemplates); // Loads the templates
+
+  await buildOverlayMain(); // Builds the main overlay
+
+  overlayMain.handleDrag('#bm-overlay', '#bm-bar-drag'); // Creates dragging capability on the drag bar for dragging the overlay
+
+  const keysPressed = new Set();
+  let animationFrameId = null;
+  const PAN_SPEED = 25; // pixels per frame
+
+  function panLoop() {
+    if (!templateManager.areKeybindsEnabled()) {
+        keysPressed.clear();
+    }
+
+    if (keysPressed.size === 0) {
+      animationFrameId = null;
+      return;
+    }
+
+    let dx = 0;
+    let dy = 0;
+
+    if (keysPressed.has('w') || keysPressed.has('arrowup')) dy -= 1;
+    if (keysPressed.has('s') || keysPressed.has('arrowdown')) dy += 1;
+    if (keysPressed.has('a') || keysPressed.has('arrowleft')) dx -= 1;
+    if (keysPressed.has('d') || keysPressed.has('arrowright')) dx += 1;
+
+    if (dx !== 0 || dy !== 0) {
+      if (dx !== 0 && dy !== 0) {
+        // Normalize diagonal movement speed
+        const length = Math.sqrt(dx * dx + dy * dy);
+        dx /= length;
+        dy /= length;
+      }
+      panMap([dx * PAN_SPEED, dy * PAN_SPEED]);
+    }
+
+    animationFrameId = requestAnimationFrame(panLoop);
+  }
+
+  document.addEventListener('keydown', (event) => {
+    // Don't pan if disabled
+    if (!templateManager.areKeybindsEnabled()) {
+        return;
+    }
+    // Don't pan if user is typing in an input
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+        return;
+    }
+
+    const key = event.key.toLowerCase();
+    const validKeys = ['w', 'a', 's', 'd']; //, 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']; // also used by wplace to handle rotation, so not capturing these
+
+    // Ignore invalid keys or repeated keydown events
+    if (!validKeys.includes(key) || keysPressed.has(key)) {
+        return;
+    }
+
+    keysPressed.add(key);
+
+    // Start the loop if it's not already running
+    if (!animationFrameId) {
+      animationFrameId = requestAnimationFrame(panLoop);
+    }
+  });
+
+  document.addEventListener('keyup', (event) => {
+    const key = event.key.toLowerCase();
+    keysPressed.delete(key);
+    // The loop will stop itself on the next frame if no keys are pressed
+  });
+
+  apiManager.spontaneousResponseListener(overlayMain); // Reads spontaneous fetch responces
+
+  observeBlack(); // Observes the black palette color
+
+  consoleLog(`%c${name}%c (${version}) userscript has loaded!`, 'color: cornflowerblue;', '');
+});
+
+/** Add the zoom level buttons if they do not exist.
+ * @since 0.86.15
+ */
+function createZoomButtons() {
+  // If the 1x zoom button does not exist, we make new zoom level buttons
+  const zoom1 = document.getElementById('BM-zoom-1x');
+  if (zoom1) return;
+  const ref = Array.from(document.querySelectorAll(".gap-1>.btn[title]")).slice(-1)[0];
+  if (!ref) return;
+  const container = ref.parentNode;
+  if (!container) return;
+
+  const isShown = templateManager.areIntegerZoomButtonsShown();
+
+  function createZoomButton(zoomLevel) {
+    const zoomBtn = document.createElement('button');
+
+    const label = zoomLevel === 0 ? "Min" : (zoomLevel + 'x');
+    zoomBtn.id = `BM-zoom-${label}`;
+    zoomBtn.textContent = label;
+
+    zoomBtn.className = ref.className;
+    zoomBtn.classList.add('bm-zoom-btn');
+    if (!isShown) {
+      zoomBtn.style.display = "none";
+    };
+
+    zoomBtn.onclick = function() {
+      var actualZoomLevel = zoomLevel;
+      if (zoomLevel === 0) {
+        var currentTileSize = getCurrentTileSize();
+        var epsilon = 1e-7; // Ensure no rounding issue but remain negligible
+        setZoom(Math.log2(8 * currentTileSize * currentTileSize) / 2 + epsilon);
+        return;
+      }
+      setZoom(Math.log2(4000 * actualZoomLevel / window['devicePixelRatio']));
+    };
+
+    container.appendChild(zoomBtn); // Adds the zoom level button
+  };
+
+  [0, 1, 2, 3, 4, 5, 10, 25].forEach( zoom => createZoomButton(zoom) );
+}
+
+/** Observe the black color, and add the "Move" button.
+ * @since 0.66.3
+ */
+function observeBlack() {
+  const observer = new MutationObserver((mutations, observer) => {
+    createZoomButtons();
+    apiManager.updateDownloadButton(true); // true to prevent triggering the observer infinitely
+
+    const black = document.querySelector('#color-1'); // Attempt to retrieve the black color element for anchoring
+
+    if (!black) {return;} // Black color does not exist yet. Kills iteself
+
+    let move = document.querySelector('#bm-button-move'); // Tries to find the move button
+
+    // If the move button does not exist, we make a new one
+    if (!move) {
+      move = document.createElement('button');
+      move.id = 'bm-button-move';
+      move.textContent = '움직이기 ↑';
+      move.className = 'btn btn-soft';
+      move.onclick = function() {
+        const roundedBox = this.parentNode.parentNode.parentNode.parentNode; // Obtains the rounded box
+        const shouldMoveUp = (this.textContent == '움직이기 ↑');
+        roundedBox.parentNode.className = roundedBox.parentNode.className.replace(shouldMoveUp ? 'bottom' : 'top', shouldMoveUp ? 'top' : 'bottom'); // Moves the rounded box to the top
+        roundedBox.style.borderTopLeftRadius = shouldMoveUp ? '0px' : 'var(--radius-box)';
+        roundedBox.style.borderTopRightRadius = shouldMoveUp ? '0px' : 'var(--radius-box)';
+        roundedBox.style.borderBottomLeftRadius = shouldMoveUp ? 'var(--radius-box)' : '0px';
+        roundedBox.style.borderBottomRightRadius = shouldMoveUp ? 'var(--radius-box)' : '0px';
+        this.textContent = shouldMoveUp ? '움직이기 ↓' : '움직이기 ↑';
+      }
+
+      // Attempts to find the "Paint Pixel" element for anchoring
+      const fourthParent = black.parentNode.parentNode.parentNode.parentNode;
+      const fifthParent = fourthParent.parentNode;
+      const paintPixel = fourthParent.querySelector('h2');
+      const container = paintPixel ? paintPixel.parentNode : fifthParent.querySelector('h2 + div');
+
+      if (container) {
+        container.appendChild(move); // Adds the move button
+      }
+    }
+
+    // should not be enabled on its own as it would break the wplace rules
+    // just here for a proof-of-work, there's no way to enable it directly via the UI
+    if (templateManager.userSettings?.smartPlace ?? false) {
+      let paint = document.querySelector('#bm-button-paint'); // Tries to find the paint button
+
+      // If the move button does not exist, we make a new one
+      if (!paint) {
+        const paint_onclick = function(out_of_screen = true) {
+          const currentCharges = Math.floor(apiManager.getCurrentCharges());
+          if (currentCharges === 0) return;
+          let examples = [];
+          const toggleStatus = new Set(templateManager.getDisplayedColorsSorted());
+          for (const stats of templateManager.tileProgress.values()) {
+            Object.entries(stats.palette).forEach(([colorKey, content]) => {
+              if (!toggleStatus.has(colorKey)) return;
+              const colorId = rgbToMeta.get(colorKey).id;
+              if (!templateManager.isColorUnlocked(colorId)) return; // color not owned, need to disable no matter if enabled or not
+              
+              examples.extend(content.examplesEnabled.map(example => [colorId, example]));
+            })
+          };
+          let exampleCoord;
+          if (examples.length === 0) return;
+          // if ([
+          //   "bm-input-tx",
+          //   "bm-input-ty",
+          //   "bm-input-px",
+          //   "bm-input-py",
+          // ].every(elementId => document.getElementById(elementId)?.value !== "")) {
+          //   const [[tx, ty], [px, py]] = getOverlayCoords();
+          //   exampleCoord = [
+          //     tx * templateManager.tileSize + px,
+          //     ty * templateManager.tileSize + py,
+          //   ];
+          // } else {
+
+          try {
+            const geoCoords = getCenterGeoCoords();
+            const tileCoords = coordsGeoCoordsToTileCoords(geoCoords[0], geoCoords[1]);
+            exampleCoord = [
+              tileCoords[0][0] * templateManager.tileSize + tileCoords[1][0],
+              tileCoords[0][1] * templateManager.tileSize + tileCoords[1][1],
+            ];
+          } catch {
+            const example = examples[Math.floor(Math.random() * examples.length)][1];
+            exampleCoord = [
+              example[0][0] * templateManager.tileSize + example[1][0],
+              example[0][1] * templateManager.tileSize + example[1][1],
+            ];
+          };
+
+          const canvas = document.querySelector("canvas.maplibregl-canvas");
+          if (!canvas) return;
+          if (!out_of_screen) {
+            const wplaceBad = !isMapTilerLoaded();
+            const pxPerW = wplaceBad ? (512 * 2 ** (13 + 0)) / 2048000 : getPixelPerWplacePixel(); // teleport zoom is 13
+            examples = examples.filter(([color1, coord1]) => {
+              const _coord1 = [
+                coord1[0][0] * templateManager.tileSize + coord1[1][0],
+                coord1[0][1] * templateManager.tileSize + coord1[1][1],
+              ];
+              return (
+                Math.abs(_coord1[0] - exampleCoord[0]) * pxPerW * 2 < canvas.offsetWidth &&
+                Math.abs(_coord1[1] - exampleCoord[1]) * pxPerW * 2 < canvas.offsetHeight
+              );
+            })
+            if (examples.length === 0) return;
+          }
+
+
+          // }
+          if (examples.length <= currentCharges) {
+            // do nothing as all are going to be painted anyway
+          } else if (examples.length < 5000) { // performance is close at about 5000 ~ 10000
+             examples = examples.sort(([color1, coord1], [color2, coord2]) => {
+              const _coord1 = [
+                coord1[0][0] * templateManager.tileSize + coord1[1][0],
+                coord1[0][1] * templateManager.tileSize + coord1[1][1],
+              ];
+              const _coord2 = [
+                coord2[0][0] * templateManager.tileSize + coord2[1][0],
+                coord2[0][1] * templateManager.tileSize + coord2[1][1],
+              ];
+              const dist1 = Math.sqrt(Math.pow(_coord1[0] - exampleCoord[0], 2) + Math.pow(_coord1[1] - exampleCoord[1], 2)) * (1 + Math.random() * 0.2);
+              const dist2 = Math.sqrt(Math.pow(_coord2[0] - exampleCoord[0], 2) + Math.pow(_coord2[1] - exampleCoord[1], 2)) * (1 + Math.random() * 0.2);
+              return dist1 - dist2;
+            }).slice(0, currentCharges);
+          } else {
+            // we don't want to fully sort the array
+            const buckets = {};
+            const resultExamples = [];
+            examples.forEach(([color1, coord1]) => {
+              const _coord1 = [
+                coord1[0][0] * templateManager.tileSize + coord1[1][0],
+                coord1[0][1] * templateManager.tileSize + coord1[1][1],
+              ];
+              const dist1 = Math.floor(Math.sqrt(Math.pow(_coord1[0] - exampleCoord[0], 2) + Math.pow(_coord1[1] - exampleCoord[1], 2)) * (1 + Math.random() * 0.2));
+              if (buckets[dist1] === undefined) {
+                buckets[dist1] = [
+                  [color1, coord1]
+                ];
+              } else {
+                buckets[dist1].push(
+                  [color1, coord1]
+                );
+              }
+            });
+            const sortedDist = Object.keys(buckets).sort((a, b) => a - b);
+            for (const dist of sortedDist) {
+              resultExamples.extend(buckets[dist]);
+              if (resultExamples.length >= currentCharges) break;
+            }
+            examples = resultExamples.slice(0, currentCharges);
+          }
+          // for (let i = 0; i < examples.length; i++) {
+          //   const [colorId, example] = examples[i];
+          //   document.getElementById("color-" + colorId).click();
+          //   teleportToTileCoords(example[0], example[1]);
+          //   const ev = new MouseEvent("click", {
+          //     "bubbles": true, "cancelable": true, "clientX": canvas.offsetWidth / 2, "clientY": canvas.offsetHeight / 2, "button": 0
+          //   });
+          //   canvas.dispatchEvent(ev);
+          // }
+          // Get back to the first point to show where the painted pixels are based on
+          let refCoord;
+          if (out_of_screen) {
+            refCoord = examples[0][1];
+            teleportToTileCoords(refCoord[0], refCoord[1]);
+          } else {
+            const geoCoords = getCenterGeoCoords();
+            refCoord = coordsGeoCoordsToTileCoords(geoCoords[0], geoCoords[1]);
+            teleportToTileCoords(refCoord[0], refCoord[1], true);
+          }
+          const wplaceBad = !isMapTilerLoaded();
+          setTimeout(() => {
+            const pxPerW = wplaceBad ? (512 * 2 ** (13 + 0)) / 2048000 : getPixelPerWplacePixel(); // teleport zoom is 13
+            let currentColorId = null;
+            const refW = [
+              refCoord[0][0] * templateManager.tileSize + refCoord[1][0],
+              refCoord[0][1] * templateManager.tileSize + refCoord[1][1],
+            ]; // reference Wplace coord
+            const cliC = [canvas.offsetWidth / 2, canvas.offsetHeight / 2]; // reference canvas coord
+            for (let i = 0; i < examples.length; i++) {
+              const [colorId, example] = examples[i];
+              if (currentColorId !== colorId) {
+                currentColorId = colorId;
+                document.getElementById("color-" + colorId).click();
+              };
+              const exW = [
+                example[0][0] * templateManager.tileSize + example[1][0],
+                example[0][1] * templateManager.tileSize + example[1][1],
+              ]
+              const ev = new MouseEvent("click", {
+                "bubbles": true, "cancelable": true,
+                "clientX": cliC[0] + (exW[0] - refW[0]) * pxPerW,
+                "clientY": cliC[1] + (exW[1] - refW[1]) * pxPerW,
+                "button": 0
+              });
+              canvas.dispatchEvent(ev);
+            }
+          }, wplaceBad ? 10000 : 0);
+        }
+
+        paint = document.createElement('button');
+        paint.id = 'bm-button-paint';
+        paint.textContent = '칠하기';
+        paint.className = 'btn btn-soft';
+        paint.onclick = () => paint_onclick(true);
+
+        const paint2 = document.createElement('button');
+        paint2.id = 'bm-button-paint';
+        paint2.textContent = '화면 채우기';
+        paint2.className = 'btn btn-soft';
+        paint2.onclick = () => paint_onclick(false);
+        // Attempts to find the "Paint Pixel" element for anchoring
+        const fourthParent = black.parentNode.parentNode.parentNode.parentNode;
+        const fifthParent = fourthParent.parentNode;
+        const paintPixel = fourthParent.querySelector('h2');
+        const container = paintPixel ? paintPixel.parentNode : fifthParent.querySelector('h2 + div');
+        
+        if (container) {
+          container.appendChild(paint); // Adds the paint button
+          container.appendChild(paint2); // Adds the paint button
+        }
+      }
+    };
+
+    // Hook color change to force refresh
+    Array.from(black.parentNode.parentNode.getElementsByTagName('button')).forEach((button) => {
+      // seems that the color selected button will remove all classes once clicked, so we hook the parent
+      if (button.parentElement.classList.contains("bm-hooked")) {
+        return;
+      }
+      button.addEventListener('click', function () {
+        if (templateManager.isOnlyCurrentColorShown()) {
+          // prevent lagging
+          setTimeout(() => {
+            templateManager.createOverlayOnMap()
+            if (templateManager.isErrorMapShown() && templateManager.isErrorMapOnlyEnabledColorsShown()) {
+              forceRefreshTiles();
+            };
+            // Just build the list (with the selected color toggled) as nothing has changed
+            buildColorFilterList();
+          }, 0);
+        };
+      });
+      button.parentElement.classList.add("bm-hooked");
+    })
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+const persistCoords = () => {
+  try {
+    const [[tx, ty], [px, py]] = getOverlayCoords();
+    const data = { tx, ty, px, py };
+    GM.setValue('bmCoords', JSON.stringify(data));
+  } catch (_) {}
+};
+
+const teleportCoords = () => {
+  try {
+    const [[tx, ty], [px, py]] = getOverlayCoords();
+    teleportToTileCoords([tx, ty], [px, py]);
+  } catch (_) {}
+};
+
+/** Deploys the overlay to the page with minimize/maximize functionality.
+ * Creates a responsive overlay UI that can toggle between full-featured and minimized states.
+ * 
+ * Parent/child relationships in the DOM structure below are indicated by indentation.
+ * @since 0.58.3
+ * Changed to async since 0.85.17
+ */
+async function buildOverlayMain() {
+  let isMinimized = false; // Overlay state tracker (false = maximized, true = minimized)
+  // Load last saved coordinates (if any)
+  let savedCoords = {};
+  const savedCoordsValue = await GM.getValue('bmCoords', '{}');
+  try {
+    savedCoords = JSON.parse(savedCoordsValue) || {};
+  } catch {
+    savedCoords = {};
+  }
+  
+  overlayMain.addDiv({'id': 'bm-overlay', 'style': 'top: 10px; right: 75px;'})
+    .addDiv({'id': 'bm-contain-header'})
+      .addDiv({'id': 'bm-bar-drag'}).buildElement()
+      .addImg({'alt': '블루 마블 아이콘 - 눌러서 최소화/최대화', 'src': 'https://raw.githubusercontent.com/sungsoos/Wplace-BlueMarble-Userscripts-kr/custom-improve/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
+        (instance, img) => {
+          /** Click event handler for overlay minimize/maximize functionality.
+           * 
+           * Toggles between two distinct UI states:
+           * 1. MINIMIZED STATE (60×76px):
+           *    - Shows only the Blue Marble icon and drag bar
+           *    - Hides all input fields, buttons, and status information
+           *    - Applies fixed dimensions for consistent appearance
+           *    - Repositions icon with 3px right offset for visual centering
+           * 
+           * 2. MAXIMIZED STATE (responsive):
+           *    - Restores full functionality with all UI elements
+           *    - Removes fixed dimensions to allow responsive behavior
+           *    - Resets icon positioning to default alignment
+           *    - Shows success message when returning to maximized state
+           * 
+           * @param {Event} event - The click event object (implicit)
+           */
+          img.addEventListener('click', () => {
+            isMinimized = !isMinimized; // Toggle the current state
+
+            const overlay = document.querySelector('#bm-overlay');
+            const header = document.querySelector('#bm-contain-header');
+            const dragBar = document.querySelector('#bm-bar-drag');
+            const coordsContainer = document.querySelector('#bm-contain-coords');
+            const coordsButton = document.querySelector('#bm-button-coords');
+            const createButton = document.querySelector('#bm-button-create');
+            const enableButton = document.querySelector('#bm-button-enable');
+            const disableButton = document.querySelector('#bm-button-disable');
+            const eventContainer = document.querySelector('#bm-contain-eventitem');
+            const coordInputs = document.querySelectorAll('#bm-contain-coords input');
+            const statusTextbox = document.getElementById(instance.outputStatusId); // Status log textarea for user feedback
+            
+            // Pre-restore original dimensions when switching to maximized state
+            // This ensures smooth transition and prevents layout issues
+            if (!isMinimized) {
+              overlay.style.width = "auto";
+              overlay.style.maxWidth = "300px";
+              overlay.style.minWidth = "200px";
+              overlay.style.padding = "10px";
+            }
+            
+            // Define elements that should be hidden/shown during state transitions
+            // Each element is documented with its purpose for maintainability
+            const elementsToToggle = [
+              '#bm-overlay h1',                    // Main title "Blue Marble"
+              '#bm-contain-userinfo',              // User information section (username, droplets, level)
+              '#bm-overlay hr',                    // Visual separator lines
+              '#bm-contain-automation > *:not(#bm-contain-coords)', // Automation section excluding coordinates
+              '#bm-contain-buttons-action',        // Action buttons container
+            ];
+            
+            // Apply visibility changes to all toggleable elements
+            elementsToToggle.forEach(selector => {
+              const elements = document.querySelectorAll(selector);
+              elements.forEach(element => {
+                element.style.display = isMinimized ? 'none' : '';
+              });
+            });
+            // Handle coordinate container and button visibility based on state
+            if (isMinimized) {
+              // ==================== MINIMIZED STATE CONFIGURATION ====================
+              // In minimized state, we hide ALL interactive elements except the icon and drag bar
+              // This creates a clean, unobtrusive interface that maintains only essential functionality
+              
+              // Hide coordinate input container completely
+              if (coordsContainer) {
+                coordsContainer.style.display = 'none';
+              }
+              
+              // Hide coordinate button (pin icon)
+              if (coordsButton) {
+                coordsButton.style.display = 'none';
+              }
+              
+              // Hide create template button
+              if (createButton) {
+                createButton.style.display = 'none';
+              }
+
+              // Hide enable templates button
+              if (enableButton) {
+                enableButton.style.display = 'none';
+              }
+
+              // Hide disable templates button
+              if (disableButton) {
+                disableButton.style.display = 'none';
+              }
+
+              // Hide bm-contain-eventitem
+              if (templateManager.isEventEnabled()) {
+                eventContainer.style.display = 'none';
+              }
+              
+              // Hide status textarea
+              if (!templateManager.isStatusHidden()) {
+                statusTextbox.style.display = 'none';
+              }
+
+              // Hide all coordinate input fields individually (failsafe)
+              coordInputs.forEach(input => {
+                input.style.display = 'none';
+              });
+              
+              // Apply fixed dimensions for consistent minimized appearance
+              // These dimensions were chosen to accommodate the icon while remaining compact
+              overlay.style.width = '60px';    // Fixed width for consistency
+              overlay.style.height = '76px';   // Fixed height (60px + 16px for better proportions)
+              overlay.style.maxWidth = '60px';  // Prevent expansion
+              overlay.style.minWidth = '60px';  // Prevent shrinking
+              overlay.style.padding = '8px';    // Comfortable padding around icon
+              
+              // Apply icon positioning for better visual centering in minimized state
+              // The 3px offset compensates for visual weight distribution
+              img.style.marginLeft = '3px';
+              
+              // Configure header layout for minimized state
+              header.style.textAlign = 'center';
+              header.style.margin = '0';
+              header.style.marginBottom = '0';
+              
+              // Ensure drag bar remains visible and properly spaced
+              if (dragBar) {
+                dragBar.style.display = '';
+                dragBar.style.marginBottom = '0.25em';
+              }
+            } else {
+              // ==================== MAXIMIZED STATE RESTORATION ====================
+              // In maximized state, we restore all elements to their default functionality
+              // This involves clearing all style overrides applied during minimization
+              
+              // Restore coordinate container to default state
+              if (coordsContainer) {
+                coordsContainer.style.display = '';           // Show container
+                coordsContainer.style.flexDirection = '';     // Reset flex layout
+                coordsContainer.style.justifyContent = '';    // Reset alignment
+                coordsContainer.style.alignItems = '';        // Reset alignment
+                coordsContainer.style.gap = '';               // Reset spacing
+                coordsContainer.style.textAlign = '';         // Reset text alignment
+                coordsContainer.style.margin = '';            // Reset margins
+              }
+              
+              // Restore coordinate button visibility
+              if (coordsButton) {
+                coordsButton.style.display = '';
+              }
+              
+              // Restore create button visibility and reset positioning
+              if (createButton) {
+                createButton.style.display = '';
+                createButton.style.marginTop = '';
+              }
+
+              // Restore enable button visibility and reset positioning
+              if (enableButton) {
+                enableButton.style.display = '';
+                enableButton.style.marginTop = '';
+              }
+
+              // Restore disable button visibility and reset positioning
+              if (disableButton) {
+                disableButton.style.display = '';
+                disableButton.style.marginTop = '';
+              }
+
+              // Restore bm-contain-eventitem
+              if (templateManager.isEventEnabled()) {
+                eventContainer.style.display = '';
+              } else {
+                eventContainer.style.display = 'none'; // eventManager itself matches #bm-contain-automation > *:not(#bm-contain-coords)
+              }
+              
+              // Restore status textarea
+              if (!templateManager.isStatusHidden()) {
+                statusTextbox.style.display = '';
+              } else {
+                statusTextbox.style.display = 'none'; // statusTextbox itself matches #bm-contain-automation > *:not(#bm-contain-coords)
+              }
+              
+              // Restore all coordinate input fields
+              coordInputs.forEach(input => {
+                input.style.display = '';
+              });
+              
+              // Reset icon positioning to default (remove minimized state offset)
+              img.style.marginLeft = '';
+              
+              // Restore overlay to responsive dimensions
+              overlay.style.padding = '10px';
+              
+              // Reset header styling to defaults
+              header.style.textAlign = '';
+              header.style.margin = '';
+              header.style.marginBottom = '';
+              
+              // Reset drag bar spacing
+              if (dragBar) {
+                dragBar.style.marginBottom = '0.5em';
+              }
+              
+              // Remove all fixed dimensions to allow responsive behavior
+              // This ensures the overlay can adapt to content changes
+              overlay.style.width = '';
+              overlay.style.height = '';
+            }
+            
+            // ==================== ACCESSIBILITY AND USER FEEDBACK ====================
+            // Update accessibility information for screen readers and tooltips
+            
+            // Update alt text to reflect current state for screen readers and tooltips
+            img.alt = isMinimized ? 
+              '블루 마블 아이콘 - 최소화됨 (클릭하여 최대화)' : 
+              '블루 마블 아이콘 - 최대화됨 (클릭하여 최소화)';
+            
+            // No status message needed - state change is visually obvious to users
+          });
+        }
+      ).buildElement()
+      .addHeader(1, {'textContent': name})
+        .addSmall({'textContent': ` v${version}`}).buildElement()
+      .buildElement()
+    .buildElement()
+
+    .addHr().buildElement()
+
+    .addDiv({'id': 'bm-contain-userinfo'})
+      .addP({'textContent': '이름: '})
+        .addB({'id': 'bm-user-name'}).buildElement()
+      .buildElement()
+      .addP({'id': 'bm-user-charges'}, (_, element) => {
+        element.setAttribute('aria-live', 'polite');
+      })
+        .addText('완충까지  ')
+        .addSpan({'className': 'bm-charge-countdown', 'textContent': '--:--'}, (_, element) => {
+          element.dataset.role = 'countdown';
+        }).buildElement()
+        .addText(' ')
+        .addSpan({'className': 'bm-charge-count', 'textContent': '(0 / 0)'}, (_, element) => {
+          element.dataset.role = 'charge-count';
+        }).buildElement()
+      .buildElement()
+      .addP({'id': 'bm-user-suspend', 'style': 'display: none;'}, (_, element) => {
+        element.setAttribute('aria-live', 'polite');
+      })
+        .addText('정지가 끝나는 시간: ')
+        .addSpan({'className': 'bm-suspend-countdown', 'textContent': '--:--'}, (_, element) => {
+          element.dataset.role = 'suspend-countdown';
+        }).buildElement()
+      .buildElement()
+      .addP({'id': 'bm-user-suspend-reason', 'textContent': '이유: ', 'style': 'display: none;'})
+        .addB({'id': 'bm-suspend-reason', 'textContent': 'Unknown'}).buildElement()
+      .buildElement()
+      .addP({'textContent': '물방울: '})
+        .addB({'id': 'bm-user-droplets'}).buildElement()
+      .buildElement()
+      .addP()
+        .addB({'id': 'bm-user-nextlevel', 'textContent': '--'}).buildElement()
+        .addText(' 레벨까지 ')
+        .addB({'id': 'bm-user-nextpixel', 'textContent': '--'}).buildElement()
+        .addText(' 픽셀 남음')
+      .buildElement()
+    .buildElement()
+
+    .addHr().buildElement()
+
+    .addDiv({'id': 'bm-contain-automation'})
+      // .addCheckbox({'id': 'bm-input-stealth', 'textContent': 'Stealth', 'checked': true}).buildElement()
+      // .addButtonHelp({'title': 'Waits for the website to make requests, instead of sending requests.'}).buildElement()
+      // .addBr().buildElement()
+      // .addCheckbox({'id': 'bm-input-possessed', 'textContent': 'Possessed', 'checked': true}).buildElement()
+      // .addButtonHelp({'title': 'Controls the website as if it were possessed.'}).buildElement()
+      // .addBr().buildElement()
+      .addDiv({'id': 'bm-contain-coords'})
+        .addButton({'id': 'bm-button-coords', 'className': 'bm-help', 'style': 'margin-top: 0;', 'innerHTML': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 6"><circle cx="2" cy="2" r="2"></circle><path d="M2 6 L3.7 3 L0.3 3 Z"></path><circle cx="2" cy="2" r="0.7" fill="white"></circle></svg></svg>'},
+          (instance, button) => {
+            button.onclick = () => {
+              const coords = instance.apiManager?.coordsTilePixel; // Retrieves the coords from the API manager
+              const emptyIfUndefined = value => value ?? "";
+              if (coords?.[0] === undefined) {
+                instance.handleDisplayError('좌표가 잘못되었습니다! 캔버스를 클릭해 보셨나요?');
+                return;
+              }
+              instance.updateInnerHTML('bm-input-tx', emptyIfUndefined(coords?.[0]));
+              instance.updateInnerHTML('bm-input-ty', emptyIfUndefined(coords?.[1]));
+              instance.updateInnerHTML('bm-input-px', emptyIfUndefined(coords?.[2]));
+              instance.updateInnerHTML('bm-input-py', emptyIfUndefined(coords?.[3]));
+              apiManager.updateDownloadButton();
+              persistCoords();
+            }
+          }
+        ).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input-tx', 'placeholder': '타일 X', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.tx ?? '')}, (instance, input) => {
+          //if a paste happens on tx, split and format it into other coordinates if possible
+          input.addEventListener("paste", (event) => {
+            const clipboardText = (event.clipboardData || window.clipboardData).getData("text");
+
+            const matchResult = [
+              /^\s*([012]?\d{1,3}),\s*([012]?\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*$/, // comma-separated
+              /^\s*([012]?\d{1,3})\s+([012]?\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s*$/, // space-separated
+              /^\s*\(?Tl X: ([012]?\d{1,3}), Tl Y: ([012]?\d{1,3}), Px X: (\d{1,3}), Px Y: (\d{1,3})\)?\s*$/, // display format
+            ].map(r => r.exec(clipboardText)).filter(r => r).pop(); //find the regex that matches the clipboard text
+
+            if (matchResult === undefined) { // If we don't have 4 clean coordinates, end the function.
+              return;
+            }
+            // let splitText = clipboardText.split(" ").filter(n => n).map(Number).filter(n => !isNaN(n)); //split and filter all Non Numbers
+
+            // if (splitText.length !== 4 ) { // If we don't have 4 clean coordinates, end the function.
+            //   return;
+            // }
+
+            let splitText = matchResult.slice(1).map(Number);
+
+            let coords = selectAllCoordinateInputs(document); 
+
+            for (let i = 0; i < coords.length; i++) { 
+              coords[i].value = splitText[i]; //add the split vales
+            }
+
+            apiManager.updateDownloadButton();
+            persistCoords();
+
+            event.preventDefault(); //prevent the pasting of the original paste that would overide the split value
+          })
+          const handler = () => (apiManager.updateDownloadButton(), persistCoords());
+          input.addEventListener('input', handler);
+          input.addEventListener('change', handler);
+        }).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input-ty', 'placeholder': '타일 Y', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.ty ?? '')}, (instance, input) => {
+          const handler = () => (apiManager.updateDownloadButton(), persistCoords());
+          input.addEventListener('input', handler);
+          input.addEventListener('change', handler);
+        }).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input-px', 'placeholder': '픽셀 X', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.px ?? '')}, (instance, input) => {
+          const handler = () => (apiManager.updateDownloadButton(), persistCoords());
+          input.addEventListener('input', handler);
+          input.addEventListener('change', handler);
+        }).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input-py', 'placeholder': '픽셀 Y', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.py ?? '')}, (instance, input) => {
+          const handler = () => (apiManager.updateDownloadButton(), persistCoords());
+          input.addEventListener('input', handler);
+          input.addEventListener('change', handler);
+        }).buildElement()
+        .addButton({'id': 'bm-button-teleport', 'className': 'bm-help', 'style': 'margin-top: 0;', 'innerHTML': '✈️', 'title': '이동'},
+          (instance, button) => {
+            button.onclick = () => {
+              teleportCoords();
+            }
+          }
+        ).buildElement()
+      .buildElement()
+      .addDetails({'id': 'bm-checkbox-container', 'textContent': '사용자 설정', 'style': 'max-width: 100%; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1); padding: 4px; border-radius: 4px; margin-top: 4px;'})
+        // Color filter UI
+        // .addDiv({'style': 'display: flex; flex-direction: column; gap: 4px;'})
+        .addDiv({'id': 'bm-user_setting-list', 'style': 'max-height: 125px; overflow-x: hidden; overflow-y: auto; touch-action: pan-x pan-y; display: flex; flex-direction: column; gap: 4px; margin-top: 3px;'})
+          .addCheckbox({'id': 'bm-only-current-color-enabled', 'textContent': '현재 색상만 표시', 'checked': templateManager.isOnlyCurrentColorShown()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setOnlyCurrentColorShown(checkbox.checked);
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("오직 선택된 색상만 표시됩니다.");
+                buildColorFilterList();
+              } else {
+                instance.handleDisplayStatus("색상 필터가 복원되었습니다.");
+                buildColorFilterList();
+              };
+              templateManager.createOverlayOnMap();
+              if (templateManager.isErrorMapShown() && templateManager.isErrorMapOnlyEnabledColorsShown()) {
+                forceRefreshTiles();
+              };
+              // Release the checkboxes
+              buildColorFilterList();
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-checkbox-colors-unlocked', 'textContent': '잠긴 색상 숨기기', 'checked': templateManager.areLockedColorsHidden()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setHideLockedColors(checkbox.checked);
+              buildColorFilterList();
+              templateManager.createOverlayOnMap();
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("모든 잠긴 색상을 숨겼습니다.");
+              } else {
+                instance.handleDisplayStatus("모든 색상을 표시합니다.");
+              }
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-checkbox-colors-completed', 'textContent': '완료된 색상 숨기기', 'checked': templateManager.areCompletedColorsHidden()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setHideCompletedColors(checkbox.checked);
+              buildColorFilterList();
+              templateManager.createOverlayOnMap();
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("모든 완료된 색상을 숨겼습니다.");
+              } else {
+                instance.handleDisplayStatus("모든 색상을 표시합니다.");
+              }
+              if (templateManager.isErrorMapShown() && templateManager.isErrorMapOnlyEnabledColorsShown()) {
+                // This setting may change the enabled color list
+                forceRefreshTiles();
+              }
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-status-hidden', 'textContent': '템플릿 오버레이 비활성화', 'checked': templateManager.areTemplatesHidden()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setTemplatesHidden(checkbox.checked);
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("템플릿 오버레이가 비활성화되었습니다.");
+                removeLayer("overlay");
+              } else {
+                instance.handleDisplayStatus("템플릿 오버레이가 활성화되었습니다.");
+                templateManager.createOverlayOnMap();
+              }
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-show-error-map', 'textContent': '오차 맵 표시', 'checked': templateManager.isErrorMapShown()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setErrorMapShown(checkbox.checked);
+              document.getElementById('bm-show-only-enabled-colors-on-error-map').parentElement.style.display = checkbox.checked ? '' : 'none'; // the label containing not the checkbox
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("오차 맵이 표시됩니다.");
+                apiManager.tileCache = {}; // reset to force update
+                forceRefreshTiles();
+              } else {
+                instance.handleDisplayStatus("오차 맵이 숨겨집니다.");
+                removeLayer("error");
+              };
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-show-only-enabled-colors-on-error-map', 'textContent': '오차 맵에서 활성화된 색상만 표시', 'checked': templateManager.isErrorMapOnlyEnabledColorsShown()}, (instance, label, checkbox) => {
+            label.style.paddingLeft = '1em';
+            if (templateManager.isErrorMapShown()) {
+              label.style.display = '';
+            } else {
+              label.style.display = 'none';
+            }
+            checkbox.addEventListener('change', () => {
+              templateManager.setErrorMapOnlyEnabledColorsShown(checkbox.checked);
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("오차 맵이 활성화된 색상만 표시합니다.");
+              } else {
+                instance.handleDisplayStatus("오차 맵이 템플릿에 참여하는 모든 픽셀을 표시합니다.");
+              };
+              apiManager.tileCache = {}; // reset to force update
+              forceRefreshTiles();
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-theme-override-enabled', 'textContent': '테마 덮어쓰기: ', 'checked': templateManager.isThemeOverridden()}, (instance, label, checkbox) => {
+            // this feature is currently broken by wplace
+            // label.style.display = "none";
+            checkbox.addEventListener('change', async () => {
+              await templateManager.setThemeOverridden(checkbox.checked);
+              const select = document.getElementById('bm-theme-setting');
+              select.disabled = !checkbox.checked;
+              forceUpdateTheme();
+            });
+          })
+            .addSelect({'id': 'bm-theme-setting'}, (instance, select) => {
+              // this feature is currently broken by wplace
+              // select.disabled = true; // !templateManager.isThemeOverridden();
+              const currentTheme = templateManager.getCurrentTheme();
+              Object.entries(themeList).forEach(([themeValue, [displayText, isDark]]) => {
+                const option = document.createElement('option');
+                option.value = themeValue;
+                option.textContent = displayText;
+                if (themeValue === currentTheme) { option.selected = true; }
+                select.appendChild(option);
+              });
+              select.addEventListener('change', async () => {
+                await templateManager.setCurrentTheme(select.value);
+                instance.handleDisplayStatus(`테마를 "${themeList[select.value][0]}"로 변경하였습니다.`);
+                forceUpdateTheme();
+              })
+            }).buildElement()
+          .buildElement()
+          .addCheckbox({'id': 'bm-event-enabled', 'textContent': '이벤트 활성화', 'checked': templateManager.isEventEnabled()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setEventEnabled(checkbox.checked);
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("이벤트 모드가 활성화되었습니다.");
+                document.getElementById('bm-contain-eventitem').style.display = '';
+                document.getElementById('bm-event-hide-claimed').parentElement.style.display = ''; // the label containing not the checkbox
+                document.getElementById('bm-event-hide-unavailable').parentElement.style.display = ''; // the label containing not the checkbox
+                apiManager.refreshEventData();
+                buildEventList();
+              } else {
+                instance.handleDisplayStatus("이벤트 모드가 비활성화되었습니다.");
+                document.getElementById('bm-contain-eventitem').style.display = 'none';
+                document.getElementById('bm-event-hide-claimed').parentElement.style.display = 'none'; // the label containing not the checkbox
+                document.getElementById('bm-event-hide-unavailable').parentElement.style.display = 'none'; // the label containing not the checkbox
+              }
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-event-hide-claimed', 'textContent': '획득한 이벤트 아이템 숨기기', 'checked': !templateManager.isEventClaimedShown()}, (instance, label, checkbox) => {
+            label.style.paddingLeft = '1em';
+            if (templateManager.isEventEnabled()) {
+              label.style.display = '';
+            } else {
+              label.style.display = 'none';
+            }
+            checkbox.addEventListener('change', () => {
+              templateManager.setEventClaimedShown(!checkbox.checked);
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("획득한 이벤트 아이템이 숨겼습니다.");
+              } else {
+                instance.handleDisplayStatus("획득한 이벤트 아이템이 복원되었습니다.");
+              }
+              buildEventList();
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-event-hide-unavailable', 'textContent': '사용할 수 없는 이벤트 아이템 숨기기', 'checked': !templateManager.isEventUnavailableShown()}, (instance, label, checkbox) => {
+            label.style.paddingLeft = '1em';
+            if (templateManager.isEventEnabled()) {
+              label.style.display = '';
+            } else {
+              label.style.display = 'none';
+            }
+            checkbox.addEventListener('change', () => {
+              templateManager.setEventUnavailableShown(!checkbox.checked);
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("사용할 수 없는 이벤트 아이템이 숨겨졌습니다.");
+              } else {
+                instance.handleDisplayStatus("사용할 수 없는 이벤트 아이템이 복원되었습니다.");
+              }
+              buildEventList();
+            });
+          }).buildElement()
+          .addLabel({'id': 'bm-template-mode', 'textContent': '템플릿 모드: '})
+            .addSelect({'id': 'bm-template-setting'}, (instance, select) => {
+              const currentMode = templateManager.getTemplateMode();
+              const templateModeList = {
+                0: "십자 (기본)",
+                1: "점 (원본)",
+                3: "3x3 사각형",
+                // maybe can support something like per-color pattern mode
+              };
+              Object.entries(templateModeList).forEach(([setValueStr, displayText]) => {
+                const option = document.createElement('option');
+                option.value = +setValueStr;
+                option.textContent = displayText;
+                if (+setValueStr === currentMode) { option.selected = true; }
+                select.appendChild(option);
+              });
+              select.addEventListener('change', async () => {
+                await templateManager.setTemplateMode(+select.value);
+                instance.handleDisplayStatus(`템플릿 모드가 "${templateModeList[select.value]}"(으)로 변경되었습니다.`);
+                templateManager.createOverlayOnMap();
+              })
+            }).buildElement()
+          .buildElement()
+          .addCheckbox({'id': 'bm-show-zoom-buttons', 'textContent': '확대 배율 버튼 표시', 'checked': templateManager.areIntegerZoomButtonsShown()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setIntegerZoomButtonsShown(checkbox.checked);
+              const concernedElements = Array.from(document.getElementsByClassName('bm-zoom-btn'));
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("확대 배율 버튼이 표시됩니다.");
+                concernedElements.forEach(button => button.style.display = '');
+              } else {
+                instance.handleDisplayStatus("확대 배율 버튼이 숨겨집니다.");
+                concernedElements.forEach(button => button.style.display = 'none');
+              };
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-enable-keybinds', 'textContent': 'WASD 키바인드 사용', 'checked': templateManager.areKeybindsEnabled()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setKeybindsEnabled(checkbox.checked);
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("WASD 키바인드가 켜졌습니다.");
+              } else {
+                instance.handleDisplayStatus("WASD 키바인드가 비활성화 되었습니다.");
+              };
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-enable-line-template', 'textContent':  '모양 템플릿 (실험적)', 'checked': templateManager.isLineTemplateButtonShown()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setLineTemplateButtonEnabled(checkbox.checked);
+              if (checkbox.checked) {
+                apiManager.updateAddLineTemplateButton();
+                apiManager.updateAddCircleTemplateButton();
+                instance.handleDisplayStatus("라인 및 원 템플릿 버튼이 이제 픽셀 정보에 표시됩니다.");
+              } else {
+                const btnLineTemplate = document.getElementById('bm-create-line-template');
+                if (btnLineTemplate) {
+                  btnLineTemplate.remove();
+                }
+                const btnCircleTemplate = document.getElementById('bm-create-circle-template');
+                if (btnCircleTemplate) {
+                  btnCircleTemplate.remove();
+                }
+                instance.handleDisplayStatus("라인 및 원 템플릿 버튼이 픽셀 정보에서 숨겨집니다.");
+              };
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-progress-bar-enabled', 'textContent': '진행률 표시', 'checked': templateManager.isProgressBarEnabled()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setProgressBarEnabled(checkbox.checked);
+              buildColorFilterList();
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("진행률이 켜졌습니다.");
+              } else {
+                instance.handleDisplayStatus("진행률이 꺼졌습니다.");
+              }
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-status-hidden', 'textContent': '상태 표시 숨기기', 'checked': templateManager.isStatusHidden()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setStatusHidden(checkbox.checked);
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("상태 표시가 숨겨졌습니다.");
+                document.getElementById(overlayMain.outputStatusId).style.display = 'none';
+              } else {
+                instance.handleDisplayStatus("상태 표시가 복원되었습니다.");
+                document.getElementById(overlayMain.outputStatusId).style.display = '';
+              }
+            });
+          }).buildElement()
+          .addCheckbox({'id': 'bm-memory-saving-enabled', 'textContent': '메모리 절약 모드 (실험적)', 'checked': templateManager.isMemorySavingModeOn()}, (instance, label, checkbox) => {
+            checkbox.addEventListener('change', () => {
+              templateManager.setMemorySavingMode(checkbox.checked);
+              buildColorFilterList();
+              if (checkbox.checked) {
+                instance.handleDisplayStatus("메모리 절약 모드가 켜졌습니다. 페이지를 새로 고침하면 효과가 완전히 활성화됩니다.");
+              } else {
+                instance.handleDisplayStatus("메모리 절약 모드가 꺼졌습니다. 페이지를 새로 고침하면 효과가 완전히 활성화됩니다.");
+              }
+            });
+          }).buildElement()
+        .buildElement()
+      .buildElement()
+      .addDetails({'id': 'bm-contain-colorfilter', 'textContent': 'Colors', 'style': 'border: 1px solid rgba(255,255,255,0.1); padding: 4px; border-radius: 4px; margin-top: 4px;'}, (instance, summary, details) => {
+        details.open = true;
+      })
+        // Color sorting
+        .addP({'textContent': '색상 정렬 기준 ', 'style': 'font-size: small; margin-top: 3px; margin-left: 5px;'})
+          // Sorting UI
+          .addSelect({'id': 'bm-color-sort'}, (instance, select) => {
+            const order = [
+              "오름차순", "내림차순"
+            ]
+            const currentSortBy = templateManager.getSortBy();
+            Object.keys(sortByOptions).forEach(o => {
+              order.forEach(o2 => {
+                const option = document.createElement('option');
+                option.value = `${o.toLowerCase()}-${o2.toLowerCase()}`;
+                const displayName = sortByDisplayNames[o] || o;
+                option.textContent = `${displayName} (${o2}.)`;
+                if (option.value === currentSortBy) { option.selected = true; }
+                select.appendChild(option);
+              })
+            });
+            select.addEventListener('change', () => {
+              templateManager.setSortBy(select.value);
+              buildColorFilterList();
+              const parts = select.value.split('-');
+              const displayName = sortByDisplayNames[parts[0]] || parts[0];
+              instance.handleDisplayStatus(`색상 정렬 기준을 "${displayName}" ${parts[1]}으로 바꿨습니다.`);
+            })
+          }).buildElement()
+        .buildElement()
+        // Color buttons
+        .addDiv({'id': 'bm-button-colors-container', 'style': 'display: flex; gap: 6px; margin-top: 3px; margin-bottom: 3px;'})
+          .addButton({'id': 'bm-button-colors-enable-all', 'textContent': '모두 활성화'}, (instance, button) => {
+            button.onclick = () => {
+              templateManager.templatesArray.forEach(t => {
+                if (!t?.colorPalette) { return; }
+                Object.values(t.colorPalette).forEach(v => v.enabled = true);
+              })
+              syncToggleList();
+              templateManager.createOverlayOnMap();
+              buildColorFilterList();
+              instance.handleDisplayStatus('모든 색상이 활성화되었습니다.');
+              if (templateManager.isErrorMapShown() && templateManager.isErrorMapOnlyEnabledColorsShown()) {
+                forceRefreshTiles();
+              };
+            };
+          }).buildElement()
+          .addButton({'id': 'bm-button-colors-disable-all', 'textContent': '모두 비활성화'}, (instance, button) => {
+            button.onclick = () => {
+              templateManager.templatesArray.forEach(t => {
+                if (!t?.colorPalette) { return; }
+                Object.values(t.colorPalette).forEach(v => v.enabled = false);
+              })
+              syncToggleList();
+              removeLayer("overlay");
+              buildColorFilterList();
+              instance.handleDisplayStatus('모든 색상이 비활성화되었습니다.');
+              if (templateManager.isErrorMapShown() && templateManager.isErrorMapOnlyEnabledColorsShown()) {
+                forceRefreshTiles();
+              };
+            };
+          }).buildElement()
+        .buildElement()
+        .addDiv({'id': 'bm-colorfilter-list', 'style': 'max-height: 125px; overflow: auto; touch-action: pan-x pan-y; display: flex; flex-direction: column; gap: 4px;'}).buildElement()
+      .buildElement()
+      // Template filter UI
+      .addDetails({'id': 'bm-contain-templatefilter', 'textContent': '템플릿', 'style': 'border: 1px solid rgba(255,255,255,0.1); padding: 4px; border-radius: 4px; margin-top: 4px;'}, (instance, summary, details) => {
+        details.open = true;
+      })
+        // Template buttons
+        .addDiv({'id': 'bm-contain-buttons-template', 'style': 'margin-bottom: 3px;'})
+          .addInputFile({'id': 'bm-input-file-template', 'textContent': '이미지 선택', 'accept': 'image/png, image/jpeg, image/webp, image/bmp, image/gif'}) // .buildElement()
+          .addButton({'id': 'bm-button-create', 'textContent': '템플릿 생성', 'style': 'margin: 0 1ch;'}, (instance, button) => {
+            button.onclick = async () => {
+              const input = document.querySelector('#bm-input-file-template');
+
+              const coordTlX = document.querySelector('#bm-input-tx');
+              if (!coordTlX.checkValidity()) {coordTlX.reportValidity(); instance.handleDisplayError('좌표가 잘못되었습니다! 캔버스를 클릭해 보셨나요?'); return;}
+              const coordTlY = document.querySelector('#bm-input-ty');
+              if (!coordTlY.checkValidity()) {coordTlY.reportValidity(); instance.handleDisplayError('좌표가 잘못되었습니다! 캔버스를 클릭해 보셨나요?'); return;}
+              const coordPxX = document.querySelector('#bm-input-px');
+              if (!coordPxX.checkValidity()) {coordPxX.reportValidity(); instance.handleDisplayError('좌표가 잘못되었습니다! 캔버스를 클릭해 보셨나요?'); return;}
+              const coordPxY = document.querySelector('#bm-input-py');
+              if (!coordPxY.checkValidity()) {coordPxY.reportValidity(); instance.handleDisplayError('좌표가 잘못되었습니다! 캔버스를 클릭해 보셨나요?'); return;}
+
+              // Kills itself if there is no file
+              if (!input?.files[0]) {instance.handleDisplayError(`파일이 선택되지 않았습니다!`); return;}
+
+              await templateManager.createTemplate(
+                input.files[0],
+                input.files[0]?.name.replace(/\.[^/.]+$/, ''),
+                [
+                  Number(coordTlX.value),
+                  Number(coordTlY.value),
+                  Number(coordPxX.value),
+                  Number(coordPxY.value),
+                ],
+                templateManager.getAnchor()
+              );
+
+              // console.log(`TCoords: ${apiManager.templateCoordsTilePixel}\nCoords: ${apiManager.coordsTilePixel}`);
+              // apiManager.templateCoordsTilePixel = apiManager.coordsTilePixel; // Update template coords
+              // console.log(`TCoords: ${apiManager.templateCoordsTilePixel}\nCoords: ${apiManager.coordsTilePixel}`);
+              // templateManager.setTemplateImage(input.files[0]);
+
+              instance.handleDisplayStatus(`캔버스에 템플릿이 추가되었습니다!`);
+            }
+          }).buildElement()
+          .addSelect({'id': 'bm-template-anchor'}, (instance, select) => {
+            const anchors = {
+              "lt": "⟔",
+              "mt": "⨪",
+              "rt": "ᒬ",
+              "lm": "꜏",
+              "mm": "⊡",
+              "rm": "꜊",
+              "lb": "Ŀ",
+              "mb": "∸",
+              "rb": "⟓",
+            };
+            const anchorTextX = {
+              "l": "왼쪽",
+              "m": "중앙",
+              "r": "오른쪽",
+            };
+            const anchorTextY = {
+              "t": "위",
+              "m": "중앙",
+              "b": "아래",
+            };
+            const currentAnchor = templateManager.getAnchor();
+            Object.entries(anchors).forEach(([anchor, displayText]) => {
+              const option = document.createElement('option');
+              option.value = anchor;
+              option.textContent = displayText;
+              if (anchor === currentAnchor) { option.selected = true; }
+              select.appendChild(option);
+            });
+            select.addEventListener('change', () => {
+              templateManager.setAnchor(select.value);
+              instance.handleDisplayStatus(`기본 템플릿 정렬이 "${anchorTextY[select.value[1]]} ${anchorTextX[select.value[0]]}"로 변경되었습니다.`);
+            })
+          }).buildElement()
+        .buildElement()
+        .addDiv({'id': 'bm-templatefilter-list', 'style': 'max-height: 125px; overflow: auto; touch-action: pan-x pan-y; display: flex; flex-direction: column; gap: 4px;'}).buildElement()
+      .buildElement()
+      // Event UI
+      .addDetails({'id': 'bm-contain-eventitem', 'textContent': '이벤트', 'style': 'border: 1px solid rgba(255,255,255,0.1); padding: 4px; border-radius: 4px; display: none; margin-top: 4px;'}, (instance, summary, details) => {
+        if (templateManager.isEventEnabled()) {
+          details.style.display = '';
+        }
+        details.open = true;
+      })
+        .addButton({'id': 'bm-button-set-eventprovider', 'textContent': '데이터 제공자 설정', 'style': 'margin: 0 1ch;'}, (instance, button) => {
+          button.onclick = () => {
+            const currentProvider = templateManager.getEventProvider();
+            const providerURL = prompt('이벤트 데이터 제공자의 JSON URL을 입력하세요:', currentProvider === "" ? "https://wplace.samuelscheit.com/tiles/pumpkin.json" : currentProvider);
+            if (!providerURL) { return; }
+            const isUrl = (content => {
+              try { return Boolean(new URL(content)); }
+              catch(e){ return false; }
+            })(providerURL);
+            if (!isUrl) {
+              alert("URL이 유효하지 않습니다!");
+              return;
+            }
+            templateManager.setEventProvider(providerURL);
+            buildEventList();
+          };
+        }).buildElement()
+        .addButton({'id': 'bm-button-refresh-event', 'textContent': '데이터 새로 고침', 'style': 'margin: 0 1ch;'}, (instance, button) => {
+          button.onclick = () => buildEventList();
+        }).buildElement()
+        .addDiv({'id': 'bm-eventitem-list', 'style': 'max-height: 125px; overflow: auto; touch-action: pan-x pan-y; display: flex; flex-direction: column; gap: 4px;'}).buildElement()
+      .buildElement()
+      // Status
+      .addTextarea({'id': overlayMain.outputStatusId, 'placeholder': `상태: 자는중...\n버전: ${version}`, 'readOnly': true}, (instance, textarea) => {
+        if (templateManager.isStatusHidden()) {
+          textarea.style.display = 'none';
+        }
+      }).buildElement()
+      .addDiv({'id': 'bm-contain-buttons-action'})
+        .addDiv()
+          // .addButton({'id': 'bm-button-teleport', 'className': 'bm-help', 'textContent': '✈'}).buildElement()
+          // .addButton({'id': 'bm-button-favorite', 'className': 'bm-help', 'innerHTML': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><polygon points="10,2 12,7.5 18,7.5 13.5,11.5 15.5,18 10,14 4.5,18 6.5,11.5 2,7.5 8,7.5" fill="white"></polygon></svg>'}).buildElement()
+          // .addButton({'id': 'bm-button-templates', 'className': 'bm-help', 'innerHTML': '🖌'}).buildElement()
+          .addButton({'id': 'bm-button-convert', 'className': 'bm-help', 'innerHTML': '🎨', 'title': '템플릿 색상 변환기'}, 
+            (instance, button) => {
+            button.addEventListener('click', () => {
+              window.open('https://pepoafonso.github.io/color_converter_wplace/', '_blank', 'noopener noreferrer');
+            });
+          }).buildElement()
+          .addButton({'id': 'bm-button-website', 'className': 'bm-help', 'innerHTML': '🌐', 'title': '공식 블루 마블 웹사이트'}, 
+            (instance, button) => {
+            button.addEventListener('click', () => {
+              window.open('https://bluemarble.lol/', '_blank', 'noopener noreferrer');
+            });
+          }).buildElement()
+        .buildElement()
+        .addDiv({'id': 'bm-footer'})
+          .addSmall({'textContent': `SwingTheVine 제작 | TWY 포크 | sungsoos 번역`, 'style': 'margin-top: auto;'}).buildElement()
+        .buildElement()
+      .buildElement()
+    .buildElement()
+  .buildOverlay(document.body);
+
+  // ------- Helper: Build the color filter list -------
+  window.syncToggleList = function syncToggleList() {
+    try {
+      (templateManager.templatesArray ?? []).forEach(t => {
+        const key = t.storageKey;
+        if (key && templateManager.templatesJSON?.templates?.[key]) {
+          const templateJSON = templateManager.templatesJSON.templates[key]
+          templateJSON.enabled = t.enabled;
+          templateJSON.palette = t.colorPalette;
+        }
+      })
+      // persist immediately
+      templateManager.storeTemplates();
+    } catch (_) {};
+  }
+
+  window.buildColorFilterList = function buildColorFilterList() {
+    const listContainer = document.getElementById('bm-colorfilter-list');
+    const colorFilterHeader = document.querySelector('#bm-contain-colorfilter > summary');
+    const toggleStatus = templateManager.getPaletteToggledStatus();
+    const hideCompleted = templateManager.areCompletedColorsHidden();
+    const hideLocked = templateManager.areLockedColorsHidden();
+    listContainer.innerHTML = '';
+
+    const { paletteSum, combinedProgress } = templateManager.getOverallPerColorProgress();
+    const templateEnabledState = Object.fromEntries(
+      (templateManager?.templatesArray ?? []).map(
+        t => [t.storageKey, t.enabled]
+      )
+    );
+    const enabledTilesCount = templateManager.templatesArray.filter(
+      template => template.enabled
+    ).reduce(
+      (curr, template) => curr + Object.keys(template?.chunked ?? {}).length,
+      0
+    );
+    // progress.template: { templateKey: status } that lists the templates corr to that tile
+    const loadedTilesCount = [...templateManager.tileProgress.values()].reduce(
+      (curr, progress) => curr + (
+        (progress.outdated ?? false) ? 0 :
+        Object.keys(progress.template).filter(
+          storageKey => templateEnabledState[storageKey]
+        ).length
+      ),
+      0
+    );
+
+    colorFilterHeader.textContent = `색상 (${loadedTilesCount} / ${enabledTilesCount} 타일 불러옴)`
+
+    if (!listContainer || !(Object.keys(paletteSum).length)) {
+      if (listContainer) { listContainer.innerHTML = '<small>표시할 템플릿 색상 없음.</small>'; }
+      return;
+    }
+
+    const sortBy = templateManager.getSortBy();
+    const sortByParts = sortBy.split('-');
+    const keyFunction = sortByOptions[sortByParts[0]];
+
+    const compareFunction = (
+      sortByParts[1] === "asc" ?
+        (a,b) => keyFunction(a) - keyFunction(b) :
+        (a,b) => keyFunction(b) - keyFunction(a)
+    );
+
+    const paletteSumSorted = Object.entries(paletteSum)
+      .map(([rgb, count]) => [rgb, combinedProgress[rgb]?.paintedAndEnabled ?? 0, count])
+      .sort(compareFunction); // sort by frequency desc
+
+    let hasColors = false;
+    for (const [rgb, paintedCount, totalCount] of paletteSumSorted) {
+      if (hideLocked && rgb === 'other') continue;
+      if (hideCompleted && paintedCount === totalCount) continue;
+      let row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.gap = '6px';
+
+      let swatch = document.createElement('div');
+      swatch.style.width = '14px';
+      swatch.style.height = '14px';
+      swatch.style.border = '1px solid rgba(255,255,255,0.5)';
+
+      let colorName = '';
+      let colorKey = '';
+      const tMeta = rgbToMeta.get(rgb);
+      // Special handling for "other" and "transparent"
+      if (rgb === 'other') {
+        swatch.style.background = '#888'; // Neutral color for "Other"
+        colorName = "기타";
+        colorKey = "other";
+      } else if (rgb === '#deface') { // legacy name?
+        swatch.style.background = '#deface';
+        colorName = "투명";
+        colorKey = "transparent";
+      } else {
+        const [r, g, b] = rgb.split(',').map(Number);
+        swatch.style.background = `rgb(${r},${g},${b})`;
+        try {
+          if (tMeta && typeof tMeta.id === 'number') {
+            if (hideLocked && !templateManager.isColorUnlocked(tMeta.id)) continue;
+            const displayName = tMeta?.name || `rgb(${r},${g},${b})`;
+            // const starLeft = tMeta.premium ? '★ ' : '';
+            // colorName = `#${tMeta.id} ${starLeft}${displayName}`;
+            if (tMeta.premium) {
+              swatch.style.borderColor = "gold";
+              swatch.style.boxShadow = "0 0 2px yellow";
+            }
+            colorName = `#${tMeta.id} ${displayName}`;
+            colorKey = `${r},${g},${b}`;
+          }
+        } catch (ignored) {}
+      }
+
+      let label = document.createElement('span');
+      label.style.fontSize = '12px';
+
+      if (sortByParts[0] === "remaining" || (hideCompleted && sortByParts[0] !== "painted")) {
+        const remainingLabelText = (totalCount - paintedCount).toLocaleString();
+        label.textContent = `${colorName} • ${remainingLabelText} 남음`;
+      } else {
+        const labelText = totalCount.toLocaleString();
+        const paintedLabelText = paintedCount.toLocaleString();
+        label.textContent = `${colorName} • ${paintedLabelText} / ${labelText}`;
+      }
+
+      if (templateManager.isProgressBarEnabled()) {
+        const percentageProgress = paintedCount / (totalCount === 0 ? 1 : totalCount) * 100;
+        row.style.background = `linear-gradient(to right, rgb(0, 128, 0, 0.8) 0%, rgb(0, 128, 0, 0.8) ${percentageProgress}%, transparent ${percentageProgress}%, transparent 100%)`;
+      }
+
+      const paletteEntry = combinedProgress[colorKey];
+      let currentIndex = 0;
+      swatch.addEventListener('click', () => {
+        // if ((paletteEntry?.examples?.length ?? 0) > 0) {
+        if ((paletteEntry?.examplesEnabled?.length ?? 0) > 0) {
+          // const examples = paletteEntry.examples;
+          const examples = paletteEntry.examplesEnabled;
+          // const exampleIndex = Math.floor(Math.random() * examples.length);
+          const exampleIndex = currentIndex % examples.length;
+          teleportToTileCoords(examples[exampleIndex][0], examples[exampleIndex][1]);
+          ++currentIndex;
+        }
+      });
+      // if ((paletteEntry?.examples?.length ?? 0) > 0) {
+      if ((paletteEntry?.examplesEnabled?.length ?? 0) > 0) {
+        swatch.style["cursor"] = "pointer";
+      };
+
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      if (templateManager.isOnlyCurrentColorShown()) {
+        toggle.checked = tMeta?.id === getCurrentColor();
+        toggle.disabled = true;
+      } else {
+        toggle.checked = toggleStatus[rgb] ?? true;
+      }
+      toggle.addEventListener('change', () => {
+        (templateManager.templatesArray ?? []).forEach(template => {
+          if (!template?.colorPalette) return;
+          if (template.colorPalette[rgb] !== undefined) {
+            template.colorPalette[rgb].enabled = toggle.checked;
+          }
+        })
+        overlayMain.handleDisplayStatus(`${toggle.checked ? 'Enabled' : 'Disabled'} ${rgb}`);
+        syncToggleList();
+        templateManager.createOverlayOnMap();
+        if (templateManager.isErrorMapShown() && templateManager.isErrorMapOnlyEnabledColorsShown()) {
+          forceRefreshTiles();
+        };
+      });
+
+      row.appendChild(toggle);
+      row.appendChild(swatch);
+      row.appendChild(label);
+      listContainer.appendChild(row);
+      hasColors = true;
+    }
+    if (!hasColors && listContainer) {
+      if (hideLocked) {
+        if (hideCompleted) {
+          listContainer.innerHTML = '<small>모든 소유한 색상이 완료되었습니다.</small>';
+        } else {
+          listContainer.innerHTML = '<small>남은 색상은 모두 잠겨 있습니다.</small>';
+        }
+      } else { // hideCompleted
+        listContainer.innerHTML = '<small>모든 색상이 완료되었습니다.</small>';
+      }
+    }
+  };
+
+  window.buildTemplateFilterList = function buildTemplateFilterList() {
+    const listContainer = document.getElementById('bm-templatefilter-list');
+    const templateFilterHeader = document.querySelector('#bm-contain-templatefilter > summary');
+    consoleLog(templateManager);
+    if (templateManager.templatesArray?.length === 0) {
+      if (listContainer) { listContainer.innerHTML = '<small>표시할 템플릿 없음.</small>'; }
+      return;
+    }
+
+    listContainer.innerHTML = '';
+
+    const enabledTemplatesCount = templateManager.templatesArray.filter(
+      template => template.enabled
+    ).length;
+
+    templateFilterHeader.textContent = `Templates (${enabledTemplatesCount} / ${templateManager.templatesArray.length} Enabled)`
+  
+    const entries = templateManager.templatesArray;
+
+    const combinedTemplate = {};
+    for (const stats of templateManager.tileProgress.values()) {
+      Object.entries(stats.template).forEach(([storageKey, content]) => {
+        if (combinedTemplate[storageKey] === undefined) {
+          combinedTemplate[storageKey] = Object.fromEntries(Object.entries(content));
+        } else {
+          combinedTemplate[storageKey].painted += content.painted;
+        }
+      })
+    };
+
+    for (const template of entries) {
+      let row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.gap = '6px';
+
+      let removeButton = document.createElement('a');
+      removeButton.title = "템플릿 제거";
+      removeButton.textContent = "🗑️";
+      removeButton.style.fontSize = '12px';
+      removeButton.onclick = () => {
+        if (confirm(`Remove template ${template?.displayName}?`)) {
+          templateManager.deleteTemplate(template?.storageKey);
+        }
+      }
+
+      let teleportButton = document.createElement('a');
+      teleportButton.title = "템플릿으로 이동";
+      teleportButton.textContent = "✈️";
+      teleportButton.style.fontSize = '12px';
+      teleportButton.onclick = () => {
+        teleportToTileCoords(template.coords.slice(0, 2), template.coords.slice(2, 4));
+      }
+
+      let label = document.createElement('span');
+      label.style.fontSize = '12px';
+      const labelText = `${template.requiredPixelCount.toLocaleString()}`;
+
+      const templateName = template["displayName"];
+      const filledCount = combinedTemplate[template.storageKey]?.painted ?? 0;
+      const filledLabelText = `${filledCount.toLocaleString()}`;
+      const renameElement = document.createElement('span');
+      renameElement.textContent = templateName;
+      renameElement.addEventListener('click', () => {
+        const currentName = template["displayName"];
+        const newName = prompt("템플릿 이름 변경", currentName);
+        if (newName) {
+          const trimmedName = newName.trim();
+          if (trimmedName === currentName) {
+            return;
+          }
+          template["displayName"] = newName.trim();
+          try {
+            const templateJSON = templateManager.templatesJSON?.templates?.[template.storageKey];
+            if (templateJSON) {
+              templateJSON.name = newName.trim();
+              // persist immediately
+              templateManager.storeTemplates();
+            }
+          } catch (_) {};
+          buildTemplateFilterList();
+        }
+      });
+      renameElement.className = "bm-templatename";
+      label.appendChild(renameElement);
+      label.appendChild(document.createTextNode(` • ${filledLabelText} / ${labelText}`));
+      // label.textContent = `${templateName} • ${labelText}`;
+
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      toggle.checked = template.enabled;
+      toggle.addEventListener('change', () => {
+        template.enabled = toggle.checked;
+        overlayMain.handleDisplayStatus(`${toggle.checked ? '활성화됨' : '비활성화됨'} ${templateName}`);
+        if (toggle.checked) {
+          // reset cache if it is being toggled on
+          // since we need the updated enabled count for each color
+          template.tilePrefixes.forEach(tileKey => {
+            if (apiManager.tileCache[tileKey]) {
+              delete apiManager.tileCache[tileKey];
+            }
+          });
+          templateManager.clearTileProgress(template);
+          templateManager.createOverlayOnMap(template.sortID);
+        } else {
+          // reset related tiles if it is being toggled off
+          // since the tile may not be involed in the template anymore
+          templateManager.clearTileProgress(template);
+          removeLayer(null, template.sortID);
+        }
+        syncToggleList();
+        // The total count has changed from clearTileProgress, and that may be a template outside the current view, so we need to refresh
+        buildColorFilterList();
+        forceRefreshTiles();
+      });
+
+      row.appendChild(toggle);
+      row.appendChild(removeButton);
+      row.appendChild(teleportButton);
+      row.appendChild(label);
+      listContainer.appendChild(row);
+    }
+  };
+
+  window.buildEventList = function buildEventList() {
+    const listContainer = document.querySelector('#bm-eventitem-list');
+    const showClaimed = templateManager.isEventClaimedShown();
+    const showUnavailable = templateManager.isEventUnavailableShown();
+    const provider = apiManager.eventDataURL ?? templateManager.getEventProvider();
+    if (apiManager.eventClaimed === null) {
+      listContainer.innerHTML = '<small>이벤트 소유 아이템 목록이 로드되지 않았습니다. 상단 왼쪽 모서리의 진행 중인 이벤트 버튼을 클릭했는지 확인하세요.</small>';
+      return;
+    };
+    if (apiManager.eventData === null && (provider === null || provider == "")) {
+      // rely on external sources
+      listContainer.innerHTML = '<small>이벤트 데이터 제공자가 설정되지 않았습니다.</small>';
+      return;
+    };
+    const eventClaimedList = new Set(apiManager.eventClaimed);
+    consoleLog("eventClaimedList", eventClaimedList);
+    // Format: e.g. https://wplace.samuelscheit.com/tiles/pumpkin.json
+    (
+      apiManager.eventData === null ?
+      fetch(provider, {
+        "credentials": "include",
+      }).then(response => response.json()) :
+      new Promise(resolve => {
+        const consumed = apiManager.eventData;
+        apiManager.eventData = null; // already consumed
+        resolve(consumed);
+      })
+    ).then(data => {
+      consoleLog("event Location data", data);
+      if (typeof data !== 'object') {
+        listContainer.innerHTML = '<small>이벤트 데이터 제공자가 알려진 형식을 제공하지 않습니다.</small>';
+        return;
+      }
+      listContainer.textContent = "";
+      let hasEntries = false;
+      const dataSource = (
+        Array.isArray(data) ?
+        data.map((entry, index) => [entry.id ?? index, entry]) :
+        Object.entries(data)
+      );
+      dataSource.forEach(([itemId, info]) => {
+        itemId = Number(itemId);
+        const isClaimed = eventClaimedList.has(itemId)
+        if (isClaimed && !showClaimed) return;
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '6px';
+
+        let coords = null;
+        let coordStatus = "";
+        if (typeof info === 'object') {
+          if (info['lat'] !== undefined && info['lng'] !== undefined) {
+            coords = [info['lat'], info['lng']];
+          } else if (info['latitude'] !== undefined && info['longitude'] !== undefined) {
+            coords = [info['latitude'], info['longitude']];
+          } else if (
+            info['tileX'] !== undefined && info['offsetX'] !== undefined &&
+            info['tileY'] !== undefined && info['offsetY'] !== undefined
+          ) {
+            coords = coordsTileCoordsToGeoCoords(
+              [info['tileX'], info['tileY']],
+              [info['offsetX'], info['offsetY']]
+            )
+          }
+          // Check Time
+          if (info['foundAt'] !== undefined) {
+            const currentTimestamp = Date.now();
+            const currentHour = currentTimestamp - (currentTimestamp % 3600000);
+            const foundTimestamp = new Date(info['foundAt']).getTime();
+            const foundHour = foundTimestamp - (foundTimestamp % 3600000);
+            if (currentHour !== foundHour) {
+              coordStatus = "만료됨 • ";
+              if (!showUnavailable) return;
+            }
+          }
+        }
+
+        if (coords !== null) {
+          let teleportButton = document.createElement('a');
+          teleportButton.title = "이벤트 아이템으로 이동";
+          teleportButton.textContent = "✈️";
+          teleportButton.style.fontSize = '12px';
+          teleportButton.onclick = () => {
+            teleportToGeoCoords(coords[0], coords[1]);
+            const mapMarkers = Array.from(
+              document.querySelectorAll(".cursor-pointer.z-10") // z-10: not the pin (z-20)
+            ).filter( x => {
+              if (x.style.opacity != 1) return false;
+              const rect = x.getBoundingClientRect();
+              const windowWidth = window.innerWidth || document.documentElement.clientWidth;
+              const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+              return (
+                rect.top >= 0 && rect.bottom <= windowWidth &&
+                rect.left >= 0 && rect.right <= windowHeight
+              );
+            });
+            if (mapMarkers.length === 1) { // only 1 opaque marker on screen
+              mapMarkers[0].click(); // safely click it  
+            };
+          }
+          row.appendChild(teleportButton);
+        } else {
+          coordStatus = "알 수 없는 좌표 형식 • ";
+        }
+
+        let label = document.createElement('span');
+        label.style.fontSize = '12px';
+        label.textContent = `#${itemId} • ${coordStatus}${eventClaimedList.has(itemId) ? "Claimed" : "Unclaimed"}`;
+        row.appendChild(label);
+        listContainer.appendChild(row);
+        hasEntries = true;
+      });
+      if (!hasEntries && listContainer) {
+        listContainer.innerHTML = `<small>${showClaimed ? "" : "비획득 "}아이템에 ${showUnavailable ? "" : "최근 "}데이터가 없습니다.</small>`;
+      }
+    }).catch(err => {
+      listContainer.innerHTML = '<small>이벤트 아이템 정보를 가져오지 못했습니다. 데이터 제공자의 URL이 유효한 JSON 리소스인지 그리고 적절한 CORS 설정이 되었는지 확인하세요.</small>';
+    });
+
+  };
+
+  window.forceUpdateTheme = function forceUpdateTheme() {
+    if (templateManager.isThemeOverridden()) {
+      setTheme(templateManager.getCurrentTheme());
+    } else {
+      setTheme(Object.keys(themeList)[0]);
+    }
+  };
+
+  // a workaround to force Map.prototype to be called
+  window.forceClickCenter = function forceClickCenter() {
+    if (!isMapTilerLoaded()) {
+      if (!forceClickCenter.clickCount) forceClickCenter.clickCount = 0;
+      // Try at most 10 times
+      if (forceClickCenter.clickCount < 10) {
+        const allianceOrRankingButton = document.querySelector(".flex>.btn.btn-square.relative.shadow-md");
+        if (allianceOrRankingButton) {
+          // not in painting mode
+          const canvas = document.querySelector("canvas.maplibregl-canvas");
+          if (canvas) {
+            const ev = new MouseEvent("click", {
+              "bubbles": true, "cancelable": true,
+              "clientX": canvas.offsetWidth / 2,
+              "clientY": canvas.offsetHeight / 2,
+              "button": 0
+            });
+            canvas.dispatchEvent(ev);
+            ++forceClickCenter.clickCount;
+          };
+        }
+        setTimeout(forceClickCenter, 100 + 100 * forceClickCenter.clickCount);
+      };
+    };
+  }
+
+  // Listen for template creation/import completion to (re)build palette list
+  window.addEventListener('message', (event) => {
+    if (event?.data?.bmEvent === 'bm-rebuild-color-list') {
+      try { buildColorFilterList(); } catch (_) {}
+    } else if (event?.data?.bmEvent === 'bm-rebuild-template-list') {
+      try { buildTemplateFilterList(); } catch (_) {}
+    } else if (event?.data?.bmEvent === 'bm-rebuild-event-list') {
+      try { buildEventList(); } catch (_) {}
+    }
+  });
+
+  // If a template was already loaded from storage, show the color UI and build list
+  setTimeout(() => {
+    try {
+      if (templateManager.templatesArray?.length > 0) {
+        // const colorUI = document.querySelector('#bm-contain-colorfilter');
+        // if (colorUI) { colorUI.style.display = ''; }
+        buildColorFilterList();
+      }
+      if (templateManager.templatesArray?.length > 0) {
+        buildTemplateFilterList();
+      }
+    } catch (_) {}
+    try {
+      if (templateManager.isEventEnabled()) {
+        buildEventList();
+      }
+    } catch (_) {}
+    try {
+      // this feature is currently broken by wplace
+      if (templateManager.isThemeOverridden()) {
+        doAfterMapFound(forceUpdateTheme);
+      }
+    } catch (_) {}
+    try {
+      forceClickCenter();
+    } catch (_) {}
+  }, 0);
+
+}

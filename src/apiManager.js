@@ -1,0 +1,872 @@
+/** ApiManager class for handling API requests, responses, and interactions.
+ * Note: Fetch spying is done in main.js, not here.
+ * @class ApiManager
+ * @since 0.11.1
+ */
+
+import TemplateManager from "./templateManager.js";
+import { consoleError, escapeHTML, numberToEncoded, serverTPtoDisplayTP, cleanUpCanvas, copyToClipboard, getOverlayCoords, areOverlayCoordsFilledAndValid, calculateTopLeftAndSize, downloadTile, testCanvasSize, consoleLog, lineBitmap, getCurrentColor, colorpalette, midPointDistance, circleBitmap, calculateTileKey } from "./utils.js";
+import { coordsTileCoordsToGeoCoords, overrideRandom } from "./utilsMaptiler.js";
+
+export default class ApiManager {
+
+  /** Constructor for ApiManager class
+   * @param {TemplateManager} templateManager 
+   * @since 0.11.34
+   */
+  constructor(templateManager) {
+    this.templateManager = templateManager;
+    this.disableAll = false; // Should the entire userscript be disabled?
+    this.coordsTilePixel = []; // Contains the last detected tile/pixel coordinate pair requested
+    this.templateCoordsTilePixel = []; // Contains the last "enabled" template coords
+    this.lastMe = null;
+    this.lastMeUpdated = null;
+    this.chargeInterval = null;
+    this.tileCache = {};
+    this.eventClaimed = null;
+    this.lastFetchedTime = null;
+    this.eventData = null;
+    this.eventDataURL = null;
+  }
+
+  getCurrentCharges() {
+    if (this.lastMe === null) {
+      this.#askServerForMe();
+      return 0;
+    }
+    const charges = this.lastMe["charges"];
+    const currentTime = Date.now();
+    const timeDiff = currentTime - this.lastMeUpdated;
+    const chargesDelta = timeDiff / charges["cooldownMs"];
+    const currentCharges = charges["count"] + chargesDelta;
+    const trueMax = charges["count"] > charges["max"] ? charges["count"] : charges["max"];
+    if (currentCharges > trueMax) {
+      return trueMax;
+    }
+    return currentCharges;
+  }
+
+  getFullRemainingTimeMs() {
+    const currentCharges = this.getCurrentCharges();
+    const charges = this.lastMe?.["charges"] ?? ({ "max": 0, "cooldownMs": 30000 });
+    if (currentCharges >= charges["max"]) {
+      return 0;
+    }
+    return (charges["max"] - currentCharges) * charges["cooldownMs"];
+  }
+
+  getFullRemainingTimeFormatted() {
+    return this.getTimeFormatted(this.getFullRemainingTimeMs());
+  }
+
+  getSuspendTimeMs() {
+    const timeoutUntil = new Date(this.lastMe?.["timeoutUntil"] ?? 0).getTime();
+    return Math.max(0, timeoutUntil - Date.now());
+  }
+
+  isSuspended() {
+    return this.getSuspendTimeMs() > 0;
+  }
+
+  getSuspendTimeFormatted() {
+    return this.getTimeFormatted(this.getSuspendTimeMs());
+  }
+
+  getTimeFormatted(remainingTimeMs) {
+    if (remainingTimeMs <= 0) {
+      return "00:00";
+    }
+    const remainingTimeSeconds = Math.floor(remainingTimeMs / 1000);
+    const hours = Math.floor(remainingTimeSeconds / 3600);
+    const minutes = (Math.floor((remainingTimeSeconds % 3600) / 60)).toString().padStart(2, '0');
+    const seconds = (remainingTimeSeconds % 60).toString().padStart(2, '0');
+    // if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`
+    // if (minutes > 0) return `${minutes}m ${seconds}s`
+    // return `${seconds}s`;
+    if (hours > 0) return `${hours}:${minutes}:${seconds}`
+    return `${minutes}:${seconds}`
+  }
+
+  #setUpTimeout() {
+    this.#updateCharges();
+    this.chargeInterval = setInterval(() => {
+      this.#updateCharges();
+    }, 1000);
+  }
+
+  #updateCharges() {
+    // Can check https://wplace.live/_app/immutable/chunks/OJISNkFj.js for the real implementation
+    if (this.lastMe === null) {
+      this.#askServerForMe();
+      return;
+    }
+    const charges = this.lastMe["charges"];
+    const currentCharges = Math.floor(this.getCurrentCharges());
+    const maxCharges = charges["max"];
+    const currentChargesStr = new Intl.NumberFormat().format(currentCharges);
+    const maxChargesStr = new Intl.NumberFormat().format(maxCharges);
+
+    const container = document.getElementById('bm-user-charges');
+    const countdownElement = container?.querySelector('[data-role="countdown"]');
+    const countElement = container?.querySelector('[data-role="charge-count"]');
+
+    if (container && countdownElement && countElement) {
+      countdownElement.textContent = this.getFullRemainingTimeFormatted();
+      countElement.textContent = `(${currentChargesStr} / ${maxChargesStr})`;
+    };
+
+    const suspendContainer = document.getElementById('bm-user-suspend');
+    const suspendCountdownElement = suspendContainer?.querySelector('[data-role="suspend-countdown"]');
+    const suspendReasonContainer = document.getElementById('bm-user-suspend-reason');
+    const suspendReasonElement = document.getElementById('bm-suspend-reason');
+
+    if (suspendContainer && suspendCountdownElement && suspendReasonContainer && suspendReasonElement) {
+      const isSuspended = this.isSuspended();
+      suspendContainer.style.display = isSuspended ? "" : "none";
+      suspendReasonContainer.style.display = isSuspended ? "" : "none";
+      if (isSuspended) {
+        suspendCountdownElement.textContent = this.getSuspendTimeFormatted();
+        suspendReasonElement.textContent = (this.lastMe["suspensionReason"] ?? "Unknown").split("-").map(word => {
+          return word.charAt(0).toUpperCase() + word.slice(1); // charAt(0) returns empty string for empty string
+        }).join(" ");
+      }
+    };
+  }
+
+  #askServerForMe() {
+    const allianceOrRankingButton = document.querySelector(".flex>.btn.btn-square.relative.shadow-md");
+    const logoutButton = document.querySelector(".relative>.dropdown>.dropdown-content>section>button.btn");
+    if (allianceOrRankingButton !== undefined && logoutButton !== undefined) {
+      // logged in and not in painting mode
+      // knock at the @me endpoint (only once per 10 seconds)
+      const currentTime = Date.now();
+      if (this.lastFetchedTime === null || currentTime - this.lastFetchedTime > 10000) { // 10 seconds
+        // fetch here is not intercepted (or can be if it is run as a bookmarklet)
+        fetch("https://backend.wplace.live/me", {
+          "credentials": "include",
+        }).then((response) => {
+          return response.json();
+        }).then((dataJSON) => {
+          // If the game can not retrieve the userdata...
+          if (dataJSON['status'] && dataJSON['status']?.toString()[0] != '2') {
+            // The server is probably down (NOT a 2xx status)
+            return;
+          }
+          consoleLog("Fetched user data", dataJSON);
+          this.#applyUserData(dataJSON, Date.now());
+        });
+        this.lastFetchedTime = currentTime;
+      }
+    }
+  }
+
+  #applyUserData(dataJSON, fetchTime) {
+    if (dataJSON === null) return;
+    const nextLevelPixels = Math.ceil(Math.pow(Math.floor(dataJSON['level']) * Math.pow(30, 0.65), (1/0.65)) - dataJSON['pixelsPainted']); // Calculates pixels to the next level
+
+    console.log(dataJSON['id']);
+    if (!!dataJSON['id'] || dataJSON['id'] === 0) {
+      console.log(numberToEncoded(
+        dataJSON['id'],
+        '!#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~'
+      ));
+    }
+    this.templateManager.userID = dataJSON['id'];
+    // For debugging
+    // dataJSON["suspensionReason"] = "inappropriate-content";
+    // dataJSON["timeoutUntil"] = "2026-01-01T00:00:00Z";
+    this.lastMe = dataJSON;
+    this.lastMeUpdated = fetchTime;
+
+    this.templateManager.updateExtraColorsBitmap(dataJSON['extraColorsBitmap'] ?? 0);
+    // Check if all colors are unlocked, and if so, remove the option to hide locked colors
+    const unlockedColorsElement = document.getElementById('bm-checkbox-colors-unlocked')?.parentElement;
+    if (unlockedColorsElement) {
+      unlockedColorsElement.style.display = this.templateManager.extraColorsBitmap === -1 ? 'none' : '';
+    }
+    
+    const userNameElement = document.getElementById('bm-user-name');
+    if (userNameElement) {
+      userNameElement.textContent = dataJSON['name'];
+    }
+    const userDropletsElement = document.getElementById('bm-user-droplets');
+    if (userDropletsElement) {
+      userDropletsElement.textContent = new Intl.NumberFormat().format(dataJSON['droplets']);
+    }
+    // Updates the text content of the next level field
+    const nextPixelElement = document.getElementById('bm-user-nextpixel');
+    if (nextPixelElement) {
+      nextPixelElement.textContent = new Intl.NumberFormat().format(nextLevelPixels);
+    }
+    const nextLevelElement = document.getElementById('bm-user-nextlevel');
+    if (nextLevelElement) {
+      nextLevelElement.textContent = Math.floor(dataJSON['level']) + 1;
+    }
+  }
+
+  /** Get the close button inside the pixel info view for anchoring
+   * 
+   * @since 0.87.4
+  */
+  getCloseButton() {
+    /*
+    1.1.0 .gap-2 UI:
+    (Y) Pixel: 1337, 337 ([Flag] Region #No)      (x)
+            < Coords to be added here
+    Painted by: (Icon) Username #ID (Alliance) (:)
+    ( Paint ) ( Favorite ) ( Share ) < Shape buttons to be added here
+    Button Class List: btn btn-primary btn-soft
+
+    1.1.1 .gap-2 UI:
+    (Icon) Username #ID  (Alliance)               (:)
+    -------------------------------------------------
+    (Y) 1337, 337 ([Flag] Region #No)             (x)
+            < Coords to be added here
+    ( Paint ) ( Favorite ) ( Share ) < Shape buttons to be added here
+    Button Class List: btn btn-sm btn-primary btn-soft
+
+    1.1.2 .gap-2 UI:
+    (Icon) Username #ID  (Alliance) (:)           (x)
+    -------------------------------------------------
+    (Y) 1337, 337 ([Flag] Region #No)
+            < Coords to be added here
+    ( Paint ) ( Favorite ) ( Share ) < Shape buttons to be added here
+    Button Class List: btn btn-sm btn-primary btn-soft
+
+    1.1.2-2 .gap-2 UI:
+    (    ) Username #ID                       (:) (x)
+    (Icon) (Alliance)
+    (    ) (Y 1337, 337) ([Flag] Region #No)  (☆) (<)
+            < Coords to be added here
+    (                      Paint                    )
+    Button Class List: btn btn-sm btn-primary btn-soft
+    */
+
+    return document.querySelector(
+      ".flex.gap-2.px-3>button.btn-circle," + 
+      ".flex.gap-1\\.5.px-3>button.btn-circle," + 
+      ".flex.gap-1>button.btn-circle.btn-xs"
+    ); // close button
+  }
+
+  /** Get the container with pixel info
+   * 
+   * @since 0.87.8
+  */
+  getPixelInfoContainer() {
+    return document.querySelector(
+      ".absolute.bottom-0>.rounded-t-box>div"
+    );
+  }
+
+  /** Get the container containing the three button, namely Paint, Favorite, and Share, for anchoring
+   * 
+   * @since 0.87.4
+  */
+  getPaintButtonContainer() {
+    const pixelInfoContainer = this.getPixelInfoContainer();
+    if (!pixelInfoContainer) return;
+    const paintButton = pixelInfoContainer.querySelector(".btn-primary:not(.btn-soft)");
+    if (!paintButton) return;
+    return paintButton.parentElement;
+  }
+
+  /** Get the container containing the three button, namely Paint, Favorite, and Share, for anchoring
+   * 
+   * @since 0.87.7
+  */
+  getShareButtonContainer() {
+    // const anchorElement = this.getCloseButton();
+    // if (!anchorElement) return;
+    // // .parentElement: The row containing the pixel
+    // // .parentElement: The whole container
+    // // .lastElementChild: The button container
+    // return anchorElement.parentElement.parentElement.lastElementChild;
+    const pixelInfoContainer = this.getPixelInfoContainer();
+    if (!pixelInfoContainer) return;
+    const favShareButton = pixelInfoContainer.querySelector(".btn-primary.btn-soft");
+    if (!favShareButton) return;
+    return favShareButton.parentElement;
+  }
+
+  /** Update the texts and related functions shown on the pixel info overlay
+   * 
+   * @since 0.85.28
+  */
+  updateDisplayCoords() {
+    const coordsTile = [ this.coordsTilePixel[0], this.coordsTilePixel[1] ];
+    const coordsPixel = [ this.coordsTilePixel[2], this.coordsTilePixel[3] ];
+
+    let displayCoords1 = document.getElementById('bm-display-coords1');
+    let displayCoords2 = document.getElementById('bm-display-coords2');
+    let displayCoords1Copy = document.getElementById('bm-display-coords1-copy');
+    let displayCoords2Copy = document.getElementById('bm-display-coords2-copy');
+
+    // Find the additional pixel coords span
+    const geoCoords = coordsTileCoordsToGeoCoords(coordsTile, coordsPixel);
+    const text1 = `(Tl X: ${coordsTile[0]}, Tl Y: ${coordsTile[1]}, Px X: ${coordsPixel[0]}, Px Y: ${coordsPixel[1]})`;
+    const text2 = `(${geoCoords[0].toFixed(5)}, ${geoCoords[1].toFixed(5)})`;
+  
+    // If we could not find the addition coord span, we make it then update the textContent with the new coords
+    if (!displayCoords1) {
+      let coordRow = this.getPaintButtonContainer()?.previousElementSibling;
+      if (!coordRow) return;
+      // For every span element, find the one we want (pixel numbers when canvas clicked)
+      displayCoords1 = document.createElement('span');
+      displayCoords1.id = 'bm-display-coords1';
+      displayCoords1.style = 'margin-left: calc(var(--spacing)*3); font-size: small;';
+      coordRow.insertAdjacentElement('afterend', displayCoords1);
+
+      const buttonCopy = function () {
+        const content = this.dataset.text;
+        copyToClipboard(content);
+        alert('클립보드에 복사됨: ' + content);
+      }
+
+      displayCoords1Copy = document.createElement('a');
+      displayCoords1Copy.href = '#';
+      displayCoords1Copy.id = 'bm-display-coords1-copy';
+      displayCoords1Copy.textContent = '복사';
+      displayCoords1Copy.style = 'font-size: small; text-decoration: underline;';
+      displayCoords1Copy.className = "text-nowrap";
+      displayCoords1Copy.addEventListener('click', buttonCopy);
+      displayCoords1.insertAdjacentElement('afterend', displayCoords1Copy);
+
+      // Space between coords and copy
+      displayCoords1.insertAdjacentText('afterend', ' ');
+      
+      const br = document.createElement('br');
+      displayCoords1Copy.insertAdjacentElement('afterend', br);
+
+      displayCoords2 = document.createElement('span');
+      displayCoords2.id = 'bm-display-coords2';
+      displayCoords2.style = 'margin-left: calc(var(--spacing)*3); font-size: small;';
+      br.insertAdjacentElement('afterend', displayCoords2);
+
+      displayCoords2Copy = document.createElement('a');
+      displayCoords2Copy.href = '#';
+      displayCoords2Copy.id = 'bm-display-coords2-copy';
+      displayCoords2Copy.textContent = '복사';
+      displayCoords2Copy.style = 'font-size: small; text-decoration: underline;';
+      displayCoords2Copy.className = "text-nowrap";
+      displayCoords2Copy.addEventListener('click', buttonCopy);
+      displayCoords2.insertAdjacentElement('afterend', displayCoords2Copy);
+
+      // Space between coords and copy
+      displayCoords2.insertAdjacentText('afterend', ' ');
+    }
+
+    if (displayCoords1) {
+      displayCoords1.textContent = text1;
+      displayCoords2.textContent = text2;
+      displayCoords1Copy.dataset.text = text1;
+      displayCoords2Copy.dataset.text = text2;
+    }
+
+    this.updateAddLineTemplateButton();
+    this.updateAddCircleTemplateButton();
+  }
+
+  /** Update the texts and related functions shown on the pixel info overlay
+   * 
+   * @since 0.86.13
+  */
+  updateAddLineTemplateButton() {
+    // Find the button container for the "Add Line Template" button
+    if (this.templateManager.isLineTemplateButtonShown()) {
+      let btnLineTemplate = document.getElementById('bm-create-line-template');
+      const that = this;
+      if (!btnLineTemplate) {
+        const buttonContainer = this.getShareButtonContainer();
+        if (!buttonContainer) return;
+        btnLineTemplate = document.createElement('span');
+        btnLineTemplate.id = 'bm-create-line-template';
+        btnLineTemplate.textContent = "／ 선 템플릿";
+        btnLineTemplate.className = buttonContainer.querySelector("button").className; // Copy from an existing button
+        btnLineTemplate.classList.add("btn-soft"); // not the primary button
+        btnLineTemplate.style.marginLeft = "12px";
+        btnLineTemplate.style.marginBottom = "8px";
+        const pixelInfoContainer = this.getPixelInfoContainer();
+        if (!pixelInfoContainer) return;
+        pixelInfoContainer.appendChild(btnLineTemplate);
+        btnLineTemplate.addEventListener('click', function () {
+          if (!areOverlayCoordsFilledAndValid()) {
+            alert(`일부 좌표 입력란이 비어 있거나 유효하지 않습니다!`);
+            return;
+          };
+          if (that.coordsTilePixel.length !== 4) {
+            alert(`좌표가 잘못되었습니다! 캔버스를 클릭해 보셨나요?`);
+            return;
+          };
+          const overlayCoords = getOverlayCoords();
+          const coordsTile = [ that.coordsTilePixel[0], that.coordsTilePixel[1] ];
+          const coordsPixel = [ that.coordsTilePixel[2], that.coordsTilePixel[3] ];
+          const [[left, top], [width, height]] = calculateTopLeftAndSize(
+            [coordsTile, coordsPixel],
+            overlayCoords
+          );
+          const defaultDrawMult = that.templateManager.drawMult;
+          if (!testCanvasSize(width * defaultDrawMult, height * defaultDrawMult)) {
+            alert(`선이 브라우저가 처리할 수 있는 크기보다 큽니다.`);
+            return;
+          }
+          const x0 = (coordsTile[0] % 2048) * 1000 + (coordsPixel[0] % 1000);
+          const y0 = (coordsTile[1] % 2048) * 1000 + (coordsPixel[1] % 1000);
+          const isTopLeft = ((x0 == left) ^ (y0 == top)) == 0;
+          const currentColor = getCurrentColor();
+          const currentColorInfo = colorpalette[currentColor];
+          const {
+            imageData, offsetX, offsetY
+          } = isTopLeft ? lineBitmap(
+            [left, top], [left + width - 1, top + height - 1], currentColorInfo.rgb
+          ) : lineBitmap(
+            [left, top + height - 1], [left + width - 1, top], currentColorInfo.rgb
+          );
+          const tx1 = Math.floor(left / 1000);
+          const ty1 = Math.floor(top / 1000);
+          const px1 = left % 1000;
+          const py1 = top % 1000;
+          that.templateManager.createTemplate(
+            imageData,
+            `${currentColorInfo?.name ?? '알 수 없는 색상'} 선`,
+            [tx1, ty1, px1, py1],
+            "lt",
+          )
+        });
+      }
+    }
+  }
+
+  /** Update the texts and related functions shown on the pixel info overlay
+   * 
+   * @since 0.86.16
+  */
+  updateAddCircleTemplateButton() {
+    // Find the button container for the "Add Line Template" button
+    if (this.templateManager.isLineTemplateButtonShown()) {
+      let btnCircleTemplate = document.getElementById('bm-create-circle-template');
+      const that = this;
+      if (!btnCircleTemplate) {
+        const buttonContainer = this.getShareButtonContainer();
+        if (!buttonContainer) return;
+        btnCircleTemplate = document.createElement('span');
+        btnCircleTemplate.id = 'bm-create-circle-template';
+        btnCircleTemplate.textContent = "○ 원 템플릿";
+        btnCircleTemplate.className = buttonContainer.querySelector("button").className; // Copy from an existing button
+        btnCircleTemplate.classList.add("btn-soft"); // not the primary button
+        btnCircleTemplate.style.marginLeft = "12px";
+        btnCircleTemplate.style.marginBottom = "8px";
+        const pixelInfoContainer = this.getPixelInfoContainer();
+        if (!pixelInfoContainer) return;
+        pixelInfoContainer.appendChild(btnCircleTemplate);
+        btnCircleTemplate.addEventListener('click', function () {
+          if (!areOverlayCoordsFilledAndValid()) {
+            alert(`일부 좌표 입력란이 비어 있거나 유효하지 않습니다!`);
+            return;
+          };
+          if (that.coordsTilePixel.length !== 4) {
+            alert(`좌표가 잘못되었습니다! 캔버스를 클릭해 보셨나요?`);
+            return;
+          };
+          const overlayCoords = getOverlayCoords();
+          const coordsTile = [ that.coordsTilePixel[0], that.coordsTilePixel[1] ];
+          const coordsPixel = [ that.coordsTilePixel[2], that.coordsTilePixel[3] ];
+          const [[left, top], [width, height]] = calculateTopLeftAndSize(
+            [coordsTile, coordsPixel],
+            overlayCoords
+          );
+          const {d, y} = midPointDistance([0, 0], [width - 1,  height - 1]);
+          const diameter = y * 2 + 1;
+          const defaultDrawMult = that.templateManager.drawMult;
+          if (!testCanvasSize(diameter * defaultDrawMult, diameter * defaultDrawMult)) {
+            alert(`원이 브라우저가 처리할 수 있는 크기보다 큽니다.`);
+            return;
+          }
+          const x0 = (overlayCoords[0][0] % 2048) * 1000 + (overlayCoords[1][0] % 1000);
+          const y0 = (overlayCoords[0][1] % 2048) * 1000 + (overlayCoords[1][1] % 1000);
+          const x1 = (coordsTile[0] % 2048) * 1000 + (coordsPixel[0] % 1000);
+          const y1 = (coordsTile[1] % 2048) * 1000 + (coordsPixel[1] % 1000);
+          const currentColor = getCurrentColor();
+          const currentColorInfo = colorpalette[currentColor];
+          const {
+            imageData, offsetX, offsetY
+          } = circleBitmap(
+            [x0, y0], [x1, y1], currentColorInfo.rgb
+          );
+
+          const tx1 = Math.floor(offsetX / 1000);
+          const ty1 = Math.floor(offsetY / 1000);
+          const px1 = offsetX % 1000;
+          const py1 = offsetY % 1000;
+          that.templateManager.createTemplate(
+            imageData,
+            `${currentColorInfo?.name ?? '알 수 없는 색상'} 원`,
+            [tx1, ty1, px1, py1],
+            "lt",
+          )
+        });
+      }
+    }
+  }
+
+  /** Update the download button in share dialog
+   * @param {boolean} onlyCreate - Only create the download section if it did not exist
+   * @since 0.85.28
+  */
+  updateDownloadButton(onlyCreate = false) {
+    if (this.coordsTilePixel.length !== 4) return;
+    const coordsTile = [ this.coordsTilePixel[0], this.coordsTilePixel[1] ];
+    const coordsPixel = [ this.coordsTilePixel[2], this.coordsTilePixel[3] ];
+    const models = document.querySelectorAll('dialog.modal > div'); // Retrieves all dialog elements
+    for (const element of models) {
+      if (element.querySelector('input[readonly]') === null) continue;
+      let downloadBtn = document.querySelector('#bm-download-coords');
+      let downloadBtnDim = document.querySelector('#bm-download-coords-dim');
+      let progress = document.querySelector('#bm-download-progress');
+      let progressText = document.querySelector('#bm-download-progress-text');
+      if (downloadBtn) {
+        if (onlyCreate) return;
+      } else {
+        const betterElement = element.querySelector(':scope > header + div > div');
+        const container = document.createElement('div');
+        if (betterElement) {
+          betterElement.appendChild(container);
+        } else {
+          element.appendChild(container);
+        }
+        element.style.maxHeight = "91.6667vh"; // Safari is too stupid to handle the original percentage max-height
+
+        const h3 = document.createElement('h3');
+        h3.innerText = '템플릿으로 다운로드';
+        h3.className = "mb-1 mt-5 flex items-center gap-1 text-xl font-semibold";
+        container.appendChild(h3);
+
+        const instruction = document.createElement('div');
+        instruction.className = `bg-base-200 border-base-content/10 rounded-xl border-2 p-3`;
+        instruction.style.fontSize = "small";
+        instruction.innerText = [
+          '다각형 범위를 지정하여 템플릿으로 다운로드:',
+          '1. 첫 번째 참조 지점을 선택합니다 (예: 왼쪽 위 모서리) 그리고 "핀" 아이콘을 사용하여 좌표를 기록합니다.',
+          '2. 두 번째 참조 지점을 선택합니다, 즉 반대 모서리 (예: 오른쪽 아래 모서리), 그리고 "공유" 버튼을 클릭합니다.'
+        ].join("\n");
+        container.appendChild(instruction);
+
+        downloadBtnDim = document.createElement('span');
+        downloadBtnDim.id = 'bm-download-coords-dim';
+        downloadBtnDim.style.fontSize = "small";
+        container.appendChild(downloadBtnDim);
+
+        container.appendChild(document.createElement('br'));
+
+        const btnContainer = document.createElement('div');
+        btnContainer.className = "mt-3 flex items-end justify-end gap-2";
+
+        progress = document.createElement('progress');
+        progress.id = 'bm-download-progress';
+        progress.max = '100';
+        progress.value = '0';
+        progress.hidden = true;
+        btnContainer.appendChild(progress);
+
+        progressText = document.createElement('span');
+        progressText.id = 'bm-download-progress-text';
+        progressText.hidden = true;
+        progressText.textContent = '0 / 0';
+        btnContainer.appendChild(progressText);
+
+        downloadBtn = document.createElement('button');
+        downloadBtn.id = 'bm-download-coords';
+        downloadBtn.className = 'btn btn-primary';
+
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", 'svg');
+        svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        svg.setAttribute('viewBox', '0 -960 960 960');
+        svg.setAttribute('fill', 'currentColor');
+        svg.setAttribute('class', 'size-5');
+        const path = document.createElementNS("http://www.w3.org/2000/svg", 'path');
+        path.setAttribute('d', "M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z");
+        svg.appendChild(path);
+        downloadBtn.appendChild(svg);
+
+        downloadBtn.appendChild(document.createTextNode(' 다운로드'));
+
+        const that = this;
+        downloadBtn.addEventListener('click', async function () {
+          this.disabled = true;
+          const coordsTile = [ that.coordsTilePixel[0], that.coordsTilePixel[1] ];
+          const coordsPixel = [ that.coordsTilePixel[2], that.coordsTilePixel[3] ];
+          if (!areOverlayCoordsFilledAndValid()) {
+            alert(`일부 좌표 입력란이 비어 있거나 유효하지 않습니다!`);
+            return;
+          }
+          const overlayCoords = getOverlayCoords();
+          const [[left, top], [width, height]] = calculateTopLeftAndSize(
+            [coordsTile, coordsPixel],
+            overlayCoords
+          );
+          const tx1 = Math.floor(left / 1000);
+          const ty1 = Math.floor(top / 1000);
+          const px1 = left % 1000;
+          const py1 = top % 1000;
+          const tx2 = Math.floor((left + width - 1) / 1000);
+          const ty2 = Math.floor((top + height - 1) / 1000);
+          const tw = tx2 - tx1 + 1;
+          const th = ty2 - ty1 + 1;
+          progress.max = tw * th;
+          progress.value = 0;
+          progress.hidden = false;
+          progressText.textContent = `0 / ${progress.max}`;
+          progressText.hidden = false;
+          try {
+            const resultCanvas = new OffscreenCanvas(width, height);
+            const context = resultCanvas.getContext('2d');
+            context.clearRect(0, 0, width, height);
+            for (let ty = ty1; ty <= ty2; ty++) {
+              for (let tx = tx1; tx <= tx2; tx++) {
+                const image = await downloadTile(tx % 2048, ty);
+                context.drawImage(
+                  image,
+                  tx * 1000 - left,
+                  ty * 1000 - top
+                );
+                progress.value++;
+                progressText.textContent = `${progress.value} / ${progress.max}`;
+              }
+            };
+            const blob = await resultCanvas.convertToBlob({ type: "image/png" });
+            var a = document.createElement("a");
+            a.href = URL.createObjectURL(blob, { type: "image/png" });
+            a.setAttribute("download", `template_${tx1}_${ty1}_${px1}_${py1}_${new Date().toISOString()}.png`);
+            a.click();
+            URL.revokeObjectURL(a.href);
+          } catch (e) {
+            alert(`다운로드 실패!`);
+            throw e;
+          } finally {
+            progress.hidden = true;
+            progressText.hidden = true;
+            this.disabled = false;
+          }
+        });
+        btnContainer.appendChild(downloadBtn);
+        container.appendChild(btnContainer);
+      }
+      const buttonLines = [];
+      if (areOverlayCoordsFilledAndValid()) {
+        const overlayCoords = getOverlayCoords();
+        const [[left, top], [width, height]] = calculateTopLeftAndSize(
+          [coordsTile, coordsPixel],
+          overlayCoords
+        );
+        const tx1 = Math.floor(left / 1000);
+        const ty1 = Math.floor(top / 1000);
+        const px1 = left % 1000;
+        const py1 = top % 1000;
+        const right = (left + width - 1) % (2048 * 1000);
+        const bottom = top + height - 1;
+        const tx2 = Math.floor(right / 1000);
+        const ty2 = Math.floor(bottom / 1000);
+        const px2 = right % 1000;
+        const py2 = bottom % 1000;
+        buttonLines.push(`왼쪽 위: (Tl X: ${tx1}, Tl Y: ${ty1}, Px X: ${px1}, Px Y: ${py1})`);
+        buttonLines.push(`오른쪽 아래: (Tl X: ${tx2}, Tl Y: ${ty2}, Px X: ${px2}, Px Y: ${py2})`);
+        buttonLines.push(`이미지 크기: ${width}×${height}`);
+        if (testCanvasSize(width, height)) {
+          downloadBtn.disabled = false;
+        } else {
+          downloadBtn.disabled = true;
+          buttonLines.push(`이미지 크기가 브라우저가 처리할 수 있는 크기보다 큽니다.`);
+        }
+      } else {
+        buttonLines.push(`일부 좌표 입력란이 비어 있거나 유효하지 않습니다.`);
+        downloadBtn.disabled = true;
+      }
+      downloadBtnDim.innerText = buttonLines.join('\n');
+    }
+  }
+
+  /** Determines if the spontaneously received response is something we want.
+   * Otherwise, we can ignore it.
+   * Note: Due to aggressive compression, make your calls like `data['jsonData']['name']` instead of `data.jsonData.name`
+   * 
+   * @param {Overlay} overlay - The Overlay class instance
+   * @since 0.11.1
+  */
+  spontaneousResponseListener(overlay) {
+
+    this.#setUpTimeout();
+
+    // Triggers whenever a message is sent
+    window.addEventListener('message', async (event) => {
+
+      const data = event.data; // The data of the message
+      const dataJSON = data['jsonData']; // The JSON response, if any
+
+      // Kills itself if the message was not intended for Blue Marble
+      if (!(data && data['source'] === 'blue-marble')) {return;}
+
+      // Kills itself if the message has no endpoint (intended for Blue Marble, but not this function)
+      if (!data['endpoint']) {return;}
+
+      // Trims endpoint to the second to last non-number, non-null directoy.
+      // E.g. "wplace.live/api/pixel/0/0?payload" -> "pixel"
+      // E.g. "wplace.live/api/files/s0/tiles/0/0/0.png" -> "tiles"
+      const endpointText = data['endpoint']?.split('?')[0].split('/').filter(s => s && isNaN(Number(s))).filter(s => s && !s.includes('.')).pop();
+
+      console.log(`%cBlue Marble%c: Received message about "%s"`, 'color: cornflowerblue;', '', endpointText);
+
+      // Each case is something that Blue Marble can use from the fetch.
+      // For instance, if the fetch was for "me", we can update the overlay stats
+      switch (endpointText) {
+
+        case 'me': // Request to retrieve user data
+
+          // If the game can not retrieve the userdata...
+          if (dataJSON['status'] && dataJSON['status']?.toString()[0] != '2') {
+            // The server is probably down (NOT a 2xx status)
+            
+            if (!(dataJSON['fallback'] ?? false)) {
+              overlay.handleDisplayError(`로그인하지 않았습니다!\n사용자 데이터를 가져올 수 없습니다.`);
+            }
+            return; // Kills itself before attempting to display null userdata
+          }
+
+          this.#applyUserData(dataJSON, Date.now());
+          break;
+
+        case 'pixel': // Request to retrieve pixel data (or when submitting a pixel)
+          const coordsTile = data['endpoint'].split('?')[0].split('/').filter(s => s && !isNaN(Number(s))).map(s => Number(s)); // Retrieves the tile coords as [x, y]
+          if ((data['jsonData'] ?? {})["painted"] !== undefined) { // POST request
+            if (!coordsTile.length) {
+              return; // Kills itself
+            }
+            // Force remove the tile from the cache since Last-Modified updates not at the same time as pixel submissions
+            const tileKey = calculateTileKey(coordsTile);
+            if (this.tileCache[tileKey]) {
+              delete this.tileCache[tileKey];
+            };
+            if (this.templateManager.tileProgress.has(tileKey)) {
+              this.templateManager.tileProgress.get(tileKey).outdated = true;
+            };
+            break;
+          }
+          const payloadExtractor = new URLSearchParams(data['endpoint'].split('?')[1]); // Declares a new payload deconstructor and passes in the fetch request payload
+          const coordsPixel = [
+            +payloadExtractor.get('x'),
+            +payloadExtractor.get('y')
+          ]; // Retrieves the deconstructed pixel coords from the payload
+          
+          // Don't save the coords if there are previous coords that could be used
+          if (this.coordsTilePixel.length && (!coordsTile.length || !coordsPixel.length)) {
+            overlay.handleDisplayError(`좌표가 올바르지 않습니다!\n캔버스를 먼저 클릭해 보셨나요?`);
+            return; // Kills itself
+          }
+
+          // Fix boundary cases
+          if (coordsTile[0] < 0 && coordsPixel[0] < 0) {
+            // Probably some JS rounding issues
+            // i.e. x is negative, it returns floor(x / 2048) and (x % 2048), which are both negative
+            coordsTile[0] += 2048;
+            coordsPixel[0] += 1000;
+          } else if (coordsTile[0] >= 2048) {
+            coordsTile[0] -= 2048;
+          }
+          
+          this.coordsTilePixel = [...coordsTile, ...coordsPixel]; // Combines the two arrays such that [x, y, x, y]
+          this.updateDisplayCoords();
+          this.updateDownloadButton();
+          break;
+        
+        case 'tile':  // https://backend.wplace.live/tile/{tx}/{ty}.png
+        case 'tiles': // https://backend.wplace.live/files/s0/tiles/{tx}/{ty}.png
+
+          // Runs only if the tile has the template
+          let tileCoordsTile = data['endpoint'].split('/');
+          tileCoordsTile = [parseInt(tileCoordsTile[tileCoordsTile.length - 2]), parseInt(tileCoordsTile[tileCoordsTile.length - 1].replace('.png', ''))];
+          
+          const blobData = data['blobData'];
+          const tileKey = calculateTileKey(tileCoordsTile);
+          const lastModified = data["lastModified"];
+          // We need the list of enabled colors to generate the unpainted list
+          const fullKey = this.templateManager.getTileCacheKey(tileCoordsTile);
+          const errorMap = +this.templateManager.isErrorMapShown();
+
+          const fullKeyChanged = !this.tileCache[tileKey] || this.tileCache[tileKey]["fullKey"] !== fullKey;
+          const lastModifiedChanged = !this.tileCache[tileKey] || this.tileCache[tileKey]["lastModified"] !== lastModified;
+          const errorMapChanged = !this.tileCache[tileKey] || this.tileCache[tileKey]["errorMap"] !== errorMap;
+          console.log(this.tileCache[tileKey]);
+          console.log(fullKey, lastModified, errorMap);
+          console.log(fullKeyChanged, lastModifiedChanged, errorMapChanged);
+          if (!fullKeyChanged && !lastModifiedChanged && !errorMapChanged) {
+            console.log(`Unchanged tile: "${tileKey}"`);
+          } else {
+            const involvedTemplates = this.templateManager.getInvolvedTemplates(tileCoordsTile);
+            if ( involvedTemplates.length > 0 && (
+              fullKeyChanged ||
+              lastModifiedChanged ||
+              (errorMapChanged && errorMap) // error map toggled on
+            )) {
+              await this.templateManager.countTemplateStatus(blobData, tileCoordsTile);
+            }
+            this.tileCache[tileKey] = { lastModified, fullKey, errorMap };
+          }
+
+          // no more need to respond
+          break;
+
+        case 'random': // Request to teleport to random location
+          const blobUUID_ = data['blobID'];
+          
+          const overrideCoords = overrideRandom["data"];
+          const jsonData = overrideCoords === null ? (
+            dataJSON // remain unchanged
+          ) : (
+            {
+              "pixel": {
+                "x": overrideCoords[1][0],
+                "y": overrideCoords[1][1],
+              },
+              "tile": {
+                "x": overrideCoords[0][0],
+                "y": overrideCoords[0][1],
+              }
+            }
+          );
+          overrideRandom["data"] = null;
+
+          window.postMessage({
+            source: 'blue-marble',
+            blobID: blobUUID_,
+            blobData: JSON.stringify(jsonData),
+            blink: data['blink']
+          });
+          break;
+
+        case 'claimed': // Claimed # in event
+          this.eventClaimed = dataJSON['claimed']??[];
+          this.templateManager.requestEventRebuild();
+          break;
+
+        case 'locations':
+          // Event item locations (e.g. https://backend.wplace.live/event/christmas/locations)
+          // This endpoint still works without the claimed key if not logged in
+          // The endpoint also seems to be called after claiming
+          this.eventClaimed = dataJSON.filter(entry => (
+            entry?.['claimed'] ?? false
+          )).map((entry, index) => (entry.id ?? index));
+          this.eventData = dataJSON;
+          this.eventDataURL = data['endpoint'];
+          this.templateManager.requestEventRebuild();
+          break;
+
+        case 'robots': // Request to retrieve what script types are allowed
+          this.disableAll = dataJSON['userscript']?.toString().toLowerCase() == 'false'; // Disables Blue Marble if site owner wants userscripts disabled
+          break;
+
+        // some interesting endpoints:
+        // https://backend.wplace.live/me/pixels-painted-today
+        // {"paintedToday":value}
+      }
+    });
+  }
+}
