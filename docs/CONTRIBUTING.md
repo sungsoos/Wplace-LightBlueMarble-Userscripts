@@ -51,9 +51,9 @@
 <h1>기여하기</h1>
 <a href="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts//blob/main/LICENSE.txt" target="_blank" rel="noopener noreferrer"><img alt="소프트웨어 라이선스: MPL-2.0" src="https://img.shields.io/badge/Software_License-MPL--2.0-slateblue?style=flat"></a>
 <p>
-  유저스크립트 "블루 마블"에 기여해 주셔서 감사합니다! 프로젝트를 좋아해 주시고 성장에 도움을 주고 싶어 하신다는 사실이 저에게 큰 의미가 됩니다. 아직 참여하지 않으셨다면 디스코드에 가입해 보세요. 그곳에서 유저스크립트에 관해 질문하고 피드백을 받을 수 있습니다. 더 많은 정보는 <a href="https://bluemarble.lol/" target="_blank" rel="noopener noreferrer">공식 블루 마블 웹사이트</a>에서도 확인할 수 있습니다.
+  유저스크립트 "하늘 구슬"에 기여해 주셔서 감사합니다! 프로젝트를 좋아해 주시고 성장에 도움을 주고 싶어 하신다는 사실이 저에게 큰 의미가 됩니다. 아직 참여하지 않으셨다면 디스코드에 가입해 보세요. 그곳에서 유저스크립트에 관해 질문하고 피드백을 받을 수 있습니다. 더 많은 정보는 <a href="https://bluemarble.lol/" target="_blank" rel="noopener noreferrer">공식 블루 마블 웹사이트</a>에서도 확인할 수 있습니다.
   <br>
-  <b>참고</b>: AI를 사용하며 코드베이스 파일 간의 관계를 AI에게 알려주고 싶다면, 이 파일의 차트 섹션에 있는 <code>블루 마블 관계 클래스 다이어그램</code>을 여세요. 다이어그램을 복사하여 AI에게 전달하면 됩니다.
+  <b>참고</b>: AI를 사용하며 코드베이스 파일 간의 관계를 AI에게 알려주고 싶다면, 이 파일의 차트 섹션에 있는 <code>하늘 구슬 관계 클래스 다이어그램</code>을 여세요. 다이어그램을 복사하여 AI에게 전달하면 됩니다.
   <br>
   <b>참고</b>: 이 프로젝트의 문서에 기여한다면 <code>documentation</code> 브랜치에서 포크를 만드세요. 코드나 프로그래밍에 기여한다면 <code>code</code> 브랜치에서 포크를 만드세요. <code>main</code>을 포크하여 <code>main</code> -> <code>main</code>으로 PR을 만들면 거부될 수 있습니다. <code>main</code>은 최신 상태가 아니므로, 변경 사항이 최신 변경 사항과 충돌할 수 있기 때문입니다.
 </p>
@@ -61,10 +61,10 @@
 <h2>요약</h2>
 <p>
   <ul>
-    <li>여러분의 시간을 낭비하고 싶지 않으니, 새 기능 추가처럼 큰 변경을 시작하기 전에 저와 먼저 상의해 주세요. 예를 들어 픽셀을 자동으로 배치하는 봇을 만드는 데 50시간을 썼는데, 픽셀 자동 배치 봇이 블루 마블의 "사명"에 맞지 않아 풀 리퀘스트가 거부된다면 정말 슬픈 일일 것입니다. :(</li>
+    <li>여러분의 시간을 낭비하고 싶지 않으니, 새 기능 추가처럼 큰 변경을 시작하기 전에 저와 먼저 상의해 주세요. 예를 들어 픽셀을 자동으로 배치하는 봇을 만드는 데 50시간을 썼는데, 픽셀 자동 배치 봇이 하늘 구슬의 "사명"에 맞지 않아 풀 리퀘스트가 거부된다면 정말 슬픈 일일 것입니다. :(</li>
     <li>프로젝트의 스타일을 따르세요. 예를 들어 모든 오버레이가 <code>Overlay()</code> 호출로 만들어져 있다면, 새 오버레이도 <code>Overlay()</code>를 호출하는 것이 좋습니다.</li>
     <li>품질이 낮은 코드는 거부됩니다.</li>
-    <li>블루 마블 문서는 <a href="https://swingthevine.github.io/Wplace-BlueMarble/index.html" target="_blank" rel="noopener noreferrer">여기</a>에서 확인할 수 있습니다.</li>
+    <li>원작 블루 마블 문서는 <a href="https://swingthevine.github.io/Wplace-BlueMarble/index.html" target="_blank" rel="noopener noreferrer">여기</a>에서 확인할 수 있습니다.</li>
     <li><code>main</code> 브랜치를 포크하지 마세요! <code>code</code> 또는 <code>documentation</code>을 포크하세요.</li>
     <li>새 기능을 함수 안에 넣는 것이 가능하다면 함수를 사용하세요. 그러면 다른 사람의 코드와 충돌할 가능성이 줄어듭니다. 코드를 <a href="https://en.wikipedia.org/wiki/Modular_programming" target="_blank" rel="noopener noreferrer">모듈화</a>하세요.</li>
   </ul>
@@ -84,7 +84,7 @@
 <h2>무엇을 기여할 수 있나요?</h2>
 <h3>프로그래밍</h3>
   <p>
-    이 유저스크립트에서 해야 할 일 대부분은 프로그래밍과 관련되어 있습니다. 프로그래밍 경험이 있으면 도움이 되지만 필수는 아닙니다. JavaScript와 문법을 배우고 싶다면 이 <a href="https://roadmap.sh/javascript" target="_blank" rel="noopener noreferrer">JavaScript 학습 로드맵</a>을 확인해 보세요. 완전히 새로운 기능을 구현할 계획이라면 함수, 메서드, 클래스 및 객체 지향 프로그래밍을 이해하는 것을 강력히 권장합니다. 메서드 체이닝이나 람다 표현식 같은 더 전문적인 지식도 유용하지만 필수는 아닙니다. 블루 마블 문서는 <a href="https://swingthevine.github.io/Wplace-BlueMarble/index.html" target="_blank" rel="noopener noreferrer">여기</a>에서 확인할 수 있습니다. 가능하면 코드를 모듈화하세요. 다시 말해, 가능한 경우 코드를 함수 안에 넣어 "블랙박스화"해야 합니다. 예를 들어 템플릿에 표시되지 않도록 색상을 제거하는 색상 필터를 추가한다면, 함수가 템플릿 정보와 타일 정보를 입력받아 필터링된 템플릿 및 타일 정보를 출력하도록 해야 합니다. 이렇게 하면 다른 사람의 코드가 색상 필터에 간섭할 수 없습니다. 예시는 다음과 같습니다.
+    이 유저스크립트에서 해야 할 일 대부분은 프로그래밍과 관련되어 있습니다. 프로그래밍 경험이 있으면 도움이 되지만 필수는 아닙니다. JavaScript와 문법을 배우고 싶다면 이 <a href="https://roadmap.sh/javascript" target="_blank" rel="noopener noreferrer">JavaScript 학습 로드맵</a>을 확인해 보세요. 완전히 새로운 기능을 구현할 계획이라면 함수, 메서드, 클래스 및 객체 지향 프로그래밍을 이해하는 것을 강력히 권장합니다. 메서드 체이닝이나 람다 표현식 같은 더 전문적인 지식도 유용하지만 필수는 아닙니다. 원작 블루 마블 문서는 <a href="https://swingthevine.github.io/Wplace-BlueMarble/index.html" target="_blank" rel="noopener noreferrer">여기</a>에서 확인할 수 있습니다. 가능하면 코드를 모듈화하세요. 다시 말해, 가능한 경우 코드를 함수 안에 넣어 "블랙박스화"해야 합니다. 예를 들어 템플릿에 표시되지 않도록 색상을 제거하는 색상 필터를 추가한다면, 함수가 템플릿 정보와 타일 정보를 입력받아 필터링된 템플릿 및 타일 정보를 출력하도록 해야 합니다. 이렇게 하면 다른 사람의 코드가 색상 필터에 간섭할 수 없습니다. 예시는 다음과 같습니다.
     <br>
     <ol>
       <li>템플릿 이미지가 생성되고 타일 정보를 가져옵니다.</li>
@@ -153,11 +153,11 @@
 
 <h2>배포 환경</h2>
 <p>
-  이곳에는 블루 마블을 수정하려는 사람에게 도움이 될 수 있는 정보가 있습니다.
+  이곳에는 하늘 구슬을 수정하려는 사람에게 도움이 될 수 있는 정보가 있습니다.
 
   <h3>Npm Run</h3>
   <p>
-    <code>npm run build</code>를 실행하면 블루 마블이 컴파일됩니다. 컴파일된 파일은 <code>dist/</code> 디렉터리에서 찾을 수 있습니다. <code>npm run patch</code>를 실행하면 패치 버전이 증가하고 블루 마블이 컴파일됩니다.
+    <code>npm run build</code>를 실행하면 하늘 구슬이 컴파일됩니다. 컴파일된 파일은 <code>dist/</code> 디렉터리에서 찾을 수 있습니다. <code>npm run patch</code>를 실행하면 패치 버전이 증가하고 하늘 구슬이 컴파일됩니다.
   </p>
 
   <h3>차트</h3>
@@ -168,7 +168,7 @@
 
 <!-- https://mermaid.js.org/syntax/classDiagram.html -->
 
-블루 마블 관계 클래스 다이어그램:
+하늘 구슬 관계 클래스 다이어그램:
 (마지막 업데이트: 0.74.0)
 ```mermaid
 ---
@@ -239,7 +239,7 @@ classDiagram
   Template ..> utils : uint8ToBase64() 호출
 ```
 
-블루 마블 컴파일러/빌더 관계 클래스 다이어그램:
+하늘 구슬 컴파일러/빌더 관계 클래스 다이어그램:
 (마지막 업데이트: 0.74.0)
 ```mermaid
 ---
@@ -329,7 +329,7 @@ classDiagram
 
 <h2>개발 환경</h2>
 <p>
-  다음은 sungsoos가 블루 마블을 개발할 때 사용하는 환경입니다. 반드시 똑같은 환경을 사용할 필요는 없으며 참고용으로 제공됩니다.
+  다음은 sungsoos가 하늘 구슬을 개발할 때 사용하는 환경입니다. 반드시 똑같은 환경을 사용할 필요는 없으며 참고용으로 제공됩니다.
 
   <h3>IDE</h3>
   Visual Studio Code<br>

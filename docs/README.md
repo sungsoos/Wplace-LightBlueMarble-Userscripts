@@ -10,14 +10,14 @@
 
 **[여기에](#regarding-this-fork)** 이 포크에 대한 정보가 더 있습니다.
 
-<strong>원클릭 설치:</strong> 이 링크를 눌러 바로 블루 마블을 설치하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>블루 마블 설치하기</strong></a>
+<strong>원클릭 설치:</strong> 이 링크를 눌러 바로 하늘 구슬을 설치하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>하늘 구슬 설치하기</strong></a>
 
 **[북마크 버전](/dist/BlueMarble.bookmarklet.min.js)** 도 사용 가능합니다.
 사용하려면, 내용을 복사한 뒤 북마크를 만들 때 링크 입력란에 붙여넣으세요.
 
 <table>
   <tr>
-    <td><a href="#블루-마블">블루 마블</a></td>
+    <td><a href="#하늘-구슬">하늘 구슬</a></td>
     <td valign="top" rowspan="99"><a href="https://discord.gg/tpeBPy46hf"><img alt="디스코드 배너" src="https://discord.com/api/guilds/796124137042608188/widget.png?style=banner4"></a></td>
   </tr>
   <tr>
@@ -48,10 +48,10 @@
     <td>&emsp;<a href="#자주-묻는-질문">자주 묻는 질문</a></td>
   </tr>
   <tr>
-    <td>&emsp;&emsp;<a href="#블루-마블은-악성코드인가요">블루 마블은 악성코드인가요?</a></td>
+    <td>&emsp;&emsp;<a href="#하늘-구슬은-악성코드인가요">하늘 구슬은 악성코드인가요?</a></td>
   </tr>
   <tr>
-    <td>&emsp;&emsp;<a href="#블루-마블이-알아서-픽셀을-찍어줄-수-있나요">블루 마블이 알아서 픽셀을 찍어줄 수 있나요?</a></td>
+    <td>&emsp;&emsp;<a href="#하늘-구슬이-알아서-픽셀을-찍어줄-수-있나요">하늘 구슬이 알아서 픽셀을 찍어줄 수 있나요?</a></td>
   </tr>
   <tr>
     <td>&emsp;&emsp;<a href="#창을-어떻게-숨기나요">창을 어떻게 숨기나요?</a></td>
@@ -61,7 +61,7 @@
   </tr>
 </table>
 
-<h1>블루 마블</h1>
+<h1>하늘 구슬</h1>
 <a href="https://status.wplace.lol" target="_blank" rel="noopener noreferrer"><img alt="Wplace 상태" src="https://status.wplace.lol/badge/_/status?labelColor=5f5f5f&color=&style=flat&label=Wplace%20%EC%83%81%ED%83%9C"></a>
 <a href="" target="_blank" rel="noopener noreferrer"><img alt="최신 버전" src="https://img.shields.io/badge/%EC%B5%9C%EC%8B%A0%20%EB%B2%84%EC%A0%84-0.87.21-lightblue?style=flat"></a>
 <a href="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/releases" target="_blank" rel="noopener noreferrer"><img alt="최신 릴리즈" src="https://img.shields.io/github/v/release/sungsoos/Wplace-LightBlueMarble-Userscripts?sort=semver&style=flat&label=%EC%B5%9C%EC%8B%A0%20%EB%A6%B4%EB%A6%AC%EC%A6%88&color=blue"></a>
@@ -89,7 +89,7 @@
   </p>
   <p>
     그러나 Userscripts가 지원하는 GM API는 Tampermonkey가 지원하는 범위보다 훨씬 적습니다. 
-    특히 블루 마블이 사용하는 기존 동기 API들은 Greasemonkey 4.0 이상 버전에서 삭제되어 다른 대안으로 교체되어야 합니다.
+    특히 하늘 구슬이 사용하는 기존 동기 API들은 Greasemonkey 4.0 이상 버전에서 삭제되어 다른 대안으로 교체되어야 합니다.
   </p>
 
   <ul>
@@ -111,13 +111,13 @@
   원하는 항목을 클릭하세요.
   <details>
     <summary>
-      <b>블루 마블을 다운로드하고 싶어요.</b> <sup>(눌러서 펼치기)</sup>
+      <b>하늘 구슬을 다운로드하고 싶어요.</b> <sup>(눌러서 펼치기)</sup>
     </summary>
     <a href="#설치-가이드">여기를 눌러</a> 설치 방법을 보세요.
   </details>
   <details>
     <summary>
-      <b>블루 마블에 대한 질문을 하고 싶어요.</b> <sup>(눌러서 펼치기)</sup>
+      <b>하늘 구슬에 대한 질문을 하고 싶어요.</b> <sup>(눌러서 펼치기)</sup>
     </summary>
     <a href="https://discord.gg/tpeBPy46hf" target="_blank" rel="noopener noreferrer">여기를 눌러</a> 블루 마블 지원 디스코드 서버 초대를 받으세요. (영어를 써주세요)
     <br>
@@ -157,7 +157,7 @@
 
 <h2>개요</h2>
 <p>
-  블루 마블에 오신 것을 환영합니다! 블루 마블은 <a href="https://wplace.live/" target="_blank" rel="noopener noreferrer">wplace.live</a>를 위한 유저스크립트입니다. 블루 마블의 용도는 이미지를 만들고, 캔버스에 씌우기 위해서입니다! 그러면, 당신의 그림을 여러 탭/모니터를 번갈아 보지 않고 확인할 수 있습니다. 추가로, 블루 마블은 멋진 추가 기능을 지원합니다. 예시를 들어:  
+  하늘 구슬에 오신 것을 환영합니다! 하늘 구슬은 <a href="https://wplace.live/" target="_blank" rel="noopener noreferrer">wplace.live</a>를 위한 유저스크립트입니다. 하늘 구슬의 용도는 이미지를 만들고, 캔버스에 씌우기 위해서입니다! 그러면, 당신의 그림을 여러 탭/모니터를 번갈아 보지 않고 확인할 수 있습니다. 추가로, 하늘 구슬은 멋진 추가 기능을 지원합니다. 예시를 들어:  
   <ul>
     <li>레벨업을 하는데 필요한 픽셀 수 표시</li>
     <li>간단한 좌표 시스템 표시 (타일 위치 및 픽셀 위치)</li>
@@ -165,18 +165,18 @@
     <li>템플릿 사진에 색상 선택기를 사용하여 올바른 색상 사용하기</li>
     <li>...그리고 더!</li>
   </ul>
-  이 유저스크립트가 좋다면, 리포지토리에 ⭐을 남겨주세요! 더 많은 정보를 원하면, <a href="https://bluemarble.lol/" target="_blank" rel="noopener noreferrer">블루 마블 웹사이트</a>를 방문하세요. 블루 마블에 기여하고 싶으면, <code>docs/</code>에 있는 <a href="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">CONTRIBUTING.md</a>를 확인해 주세요.
+  이 유저스크립트가 좋다면, 리포지토리에 ⭐을 남겨주세요! 더 많은 정보를 원하면, <a href="https://bluemarble.lol/" target="_blank" rel="noopener noreferrer">원작 블루 마블 웹사이트</a>를 방문하세요. 하늘 구슬에 기여하고 싶으면, <code>docs/</code>에 있는 <a href="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">CONTRIBUTING.md</a>를 확인해 주세요.
 
-  <img alt="블루 마블 템플릿의 미리보기 이미지" src="./assets/Showcase1.png">
+  <img alt="하늘 구슬 템플릿의 미리보기 이미지" src="./assets/Showcase1.png">
 
   <h3>설치 가이드</h3>
   <a href="" target="_blank" rel="noopener noreferrer"><img alt="지원되는 브라우저" src="https://img.shields.io/badge/%EC%A7%80%EC%9B%90%EB%90%98%EB%8A%94%20%EB%B8%8C%EB%9D%BC%EC%9A%B0%EC%A0%80-%ED%81%AC%EB%A1%AC%20%7C%20%ED%8C%8C%EC%9D%B4%EC%96%B4%ED%8F%AD%EC%8A%A4*%20%7C%20%EC%82%AC%ED%8C%8C%EB%A6%AC%20%7C%20%EC%97%A3%EC%A7%80%20%7C%20%EB%B8%8C%EB%A0%88%EC%9D%B4%EB%B8%8C-orange?style=flat"></a>
-  <a href="" target="_blank" rel="noopener noreferrer"><img alt="지원되지 않는 브라우저" src="https://img.shields.io/badge/%EC%A7%80%EC%9B%90%EB%90%98%EC%A7%80%20%EC%95%8A%EB%8A%94%20%EB%B8%8C%EB%9D%BC%EC%9A%B0%EC%A0%80-%ED%8C%8C%EC%9D%B4%EC%96%B4%ED%8F%AD%EC%8A%A4*%20%7C%20%ED%82%A4%EC%9C%84%20%7C%20%EB%B9%84%EB%B0%9C%EB%94%94-red?style=flat"></a>
+  <a href="" target="_blank" rel="noopener noreferrer"><img alt="지원되지 않는 브라우저" src="https://img.shields.io/badge/%EC%A7%80%EC%9B%90%EB%90%98%EC%97%85%EC%95%8A%EB%8A%94%20%EB%B8%8C%EB%9D%BC%EC%9A%B0%EC%A0%80-%ED%8C%8C%EC%9D%B4%EC%96%B4%ED%8F%AD%EC%8A%A4*%20%7C%20%ED%82%A4%EC%9C%84%20%7C%20%EB%B9%84%EB%B0%9C%EB%94%94-red?style=flat"></a>
   <p>
-    블루 마블은 모바일 기기에서 작동합니다. 블루 마블은 크롬을 위해 제작되었지만, 
+    하늘 구슬은 모바일 기기에서 작동합니다. 하늘 구슬은 크롬을 위해 제작되었지만, 
     위에 없는 "지원되지 않는" 브라우저에서도 작동할 수 있습니다. 특정 파이어폭스 버전/포크에서 작동합니다. 특정 파이어폭스 버전/포크에서는 작동하지 않습니다.
     <br>
-    블루 마블 설치 가이드는 아래에 적혀 있습니다. 화살표를 눌러 가이드를 확장하세요. 파란 글씨는 링크입니다.
+    하늘 구슬 설치 가이드는 아래에 적혀 있습니다. 화살표를 눌러 가이드를 확장하세요. 파란 글씨는 링크입니다.
     <details>
       <summary>
         <b>크롬에 설치</b> <sup>(눌러서 펼치기)</sup>
@@ -194,7 +194,7 @@
         <br>
         <img alt="'개발자 모드'와 '사용자 스크립트 허용'을 활성화하세요" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/ComputerChromeInstall3.png"></li>
         <li>'사용자 스크립트 허용'을 활성화하세요.</li>
-        <li><strong>원클릭 설치:</strong> 이 링크를 눌러 블루 마블을 바로 설치하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>블루 마블 설치</strong></a>
+        <li><strong>원클릭 설치:</strong> 이 링크를 눌러 하늘 구슬을 바로 설치하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>하늘 구슬 설치</strong></a>
         <br>
         TamperMonkey가 유저스크립트를 자동으로 감지하고 설치 여부를 묻습니다.</li>
         <li><a href="https://wplace.live/" target="_blank" rel="noopener noreferrer">wplace.live</a> 웹페이지를 새로고침하세요.</li>
@@ -222,12 +222,12 @@
         <li><code>BlueMarble.user.js</code> 파일을 TamperMonkey 대시보드 안으로 끌어다 놓으세요.
         <br>
         <img alt="유저스크립트를 대시보드 안으로 끌어다 놓으세요" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/ComputerChromeInstall5.png"></li>
-        <li>'설치' 버튼을 클릭하여 블루 마블을 설치하세요.
+        <li>'설치' 버튼을 클릭하여 하늘 구슬을 설치하세요.
         <br>
         <img alt="'설치' 버튼을 클릭하세요" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/ComputerChromeInstall6.png"></li>
-        <li>TamperMonkey 대시보드에서 블루 마블을 활성화하세요.
+        <li>TamperMonkey 대시보드에서 하늘 구슬을 활성화하세요.
         <br>
-        <img alt="블루 마블을 활성화하세요" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/ComputerChromeInstall7.png"></li>
+        <img alt="하늘 구슬을 활성화하세요" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/ComputerChromeInstall7.png"></li>
         <li><a href="https://wplace.live/" target="_blank" rel="noopener noreferrer">wplace.live</a> 웹페이지를 새로고침하세요.</li>
       </ol>
     </details>
@@ -239,7 +239,7 @@
         <li><a href="https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/" target="_blank" rel="noopener noreferrer">TamperMonkey</a> 플러그인을 설치하세요.
         <br>
         <img alt="'파이어폭스에 추가' 버튼을 클릭하세요" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/ComputerFireFoxInstall1.png"></li>
-        <li><strong>원클릭 설치:</strong> 이 링크를 눌러 블루 마블을 설치하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>블루 마블 설치</strong></a>
+        <li><strong>원클릭 설치:</strong> 이 링크를 눌러 하늘 구슬을 설치하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>하늘 구슬 설치</strong></a>
         <br>
         TamperMonkey가 유저스크립트를 자동으로 감지하고 설치 여부를 묻습니다.</li>
         <li><a href="https://wplace.live/" target="_blank" rel="noopener noreferrer">wplace.live</a> 웹페이지를 새로고침하세요.</li>
@@ -252,9 +252,9 @@
       <ol>
         <li>앱 스토어에서 <a href="https://apps.apple.com/us/app/userscripts/id1463298887" target="_blank" rel="noopener noreferrer">Userscripts</a> 앱을 설치하세요.
         <br>
-        블루 마블을 위한 권한이 사파리와 앱에 부여되었는지 확인하세요.</li>
+        하늘 구슬을 위한 권한이 사파리와 앱에 부여되었는지 확인하세요.</li>
         <br>
-        <li>블루 마블 스크립트를 Userscripts에서 설정한 위치에 저장하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>블루 마블 다운로드</strong></a>
+        <li>하늘 구슬 스크립트를 Userscripts에서 설정한 위치에 저장하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>하늘 구슬 다운로드</strong></a>
         <br>
         Userscripts가 자동으로 유저스크립트를 감지할 것입니다.</li>
         <li><a href="https://wplace.live/" target="_blank" rel="noopener noreferrer">wplace.live</a> 웹페이지를 새로고짐 하세요.</li>
@@ -265,7 +265,7 @@
 
   <h3>템플릿 가이드</h3>
   <p>
-    블루 마블은 당신의 템플릿을 같은 크기로 표시할 것입니다. 만약 당신의 사진이 500x300이라면, 템플릿도 500x300이 될 것입니다. 여기는 템플릿 사진을 캔버스에 표시하기 위한 가이드입니다: 
+    하늘 구슬은 당신의 템플릿을 같은 크기로 표시할 것입니다. 만약 당신의 사진이 500x300이라면, 템플릿도 500x300이 될 것입니다. 여기는 템플릿 사진을 캔버스에 표시하기 위한 가이드입니다: 
     <ol>
       <li>왼쪽 위 코너의 좌표를 찾습니다. <code>타일 X</code>, <code>타일 Y</code>, <code>픽셀 X</code>, and <code>픽셀 Y</code> 를 좌표로 채웁니다. "핀" 아이콘을 눌러 좌표를 자동으로 채울 수 있습니다.
       <br>
@@ -278,14 +278,14 @@
 
   <h3>스크립트 설정</h3>
   <p>
-    블루 마블 유저스크립트에는 많은 설정이 있습니다! 이 설정들로, 스크립트가 어떻게 동작하는지 바꿀 수 있습니다.
+    하늘 구슬 유저스크립트에는 많은 설정이 있습니다! 이 설정들로, 스크립트가 어떻게 동작하는지 바꿀 수 있습니다.
   </p>
 
   <h3>템플릿 설정</h3>
   <p>
     <h4>투명 픽셀</h4>
     <p>
-      블루 마블을 위한 템플릿은 약간 다르게 동작합니다. "투명" 색상이 있고, 템플릿에서 투명 픽셀은 일반적으로 무시되므로, 당신의 템플릿은 "투명" 색상 픽셀을 시각화하는 색상이 필요합니다.
+      하늘 구슬을 위한 템플릿은 약간 다르게 동작합니다. "투명" 색상이 있고, 템플릿에서 투명 픽셀은 일반적으로 무시되므로, 당신의 템플릿은 "투명" 색상 픽셀을 시각화하는 색상이 필요합니다.
       <ul>
         <li>만약 특정 픽셀이 어떤 색상이 되기를 원하면, 그 픽셀은 당신의 템플릿에서 투명 색상이 되어야 합니다.</li>
         <li>만약 어떤 픽셀이 "투명" 색상이 되기를 원하면, 그 픽셀은 당신의 템플릿에서 <code>#deface</code> 색상이 되어야 합니다.</li>
@@ -295,7 +295,7 @@
     <p>
       <h5>타일 좌표</h5>
       <p>
-        wplace.live의 좌표 체계는 매우 독특합니다. 모든 픽셀이 하나의 절대적인 전체 좌표(x, y)를 갖는 대신, 좌표 숫자가 타일을 기준으로 상대적으로 지정됩니다. 따라서 어떤 작업을 수행하려면 타일 번호와 픽셀 좌표 번호를 둘 다 알아야 합니다. 블루 마블에서는 픽셀을 클릭하면 해당 타일 좌표와 픽셀 좌표가 함께 표시됩니다. 템플릿의 위치를 맞출 때는 바로 이 좌표들을 사용해야 합니다.
+        wplace.live의 좌표 체계는 매우 독특합니다. 모든 픽셀이 하나의 절대적인 전체 좌표(x, y)를 갖는 대신, 좌표 숫자가 타일을 기준으로 상대적으로 지정됩니다. 따라서 어떤 작업을 수행하려면 타일 번호와 픽셀 좌표 번호를 둘 다 알아야 합니다. 하늘 구슬에서는 픽셀을 클릭하면 해당 타일 좌표와 픽셀 좌표가 함께 표시됩니다. 템플릿의 위치를 맞출 때는 바로 이 좌표들을 사용해야 합니다.
         <br>
         <img alt="좌표를 찾는 방법" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/TemplateCoordinatesDisplay.png">
       </p>
@@ -325,11 +325,11 @@
 
 <h2>자주 묻는 질문</h2>
 <p>
-  <h3>블루 마블은 악성코드인가요?</h3>
-  <p><b>답변:</b> 블루 마블에는 악성 코드가 포함되어 있지 않습니다. 블루 마블의 코드는 <code>src/</code> 폴더에서 확인하실 수 있습니다. 악성코드가 우려되신다면 직접 코드를 검토한 뒤 <code>build/</code>에 있는 도구를 사용해 직접 빌드하여 사용하실 수 있습니다.</p>
+  <h3>하늘 구슬은 악성코드인가요?</h3>
+  <p><b>답변:</b> 하늘 구슬에는 악성 코드가 포함되어 있지 않습니다. 하늘 구슬의 코드는 <code>src/</code> 폴더에서 확인하실 수 있습니다. 악성코드가 우려되신다면 직접 코드를 검토한 뒤 <code>build/</code>에 있는 도구를 사용해 직접 빌드하여 사용하실 수 있습니다.</p>
 
-  <h3>블루 마블이 알아서 픽셀을 찍어줄 수 있나요?</h3>
-  <p><b>답변:</b> 안타깝게도 Wplace 측에서 허용하지 않기 때문에, 블루 마블은 사용자 조작 없는 자동 픽셀 찍기 기능을 지원하지 않습니다.</p>
+  <h3>하늘 구슬이 알아서 픽셀을 찍어줄 수 있나요?</h3>
+  <p><b>답변:</b> 안타깝게도 Wplace 측에서 허용하지 않기 때문에, 하늘 구슬은 사용자 조작 없는 자동 픽셀 찍기 기능을 지원하지 않습니다.</p>
 
   <h3>창을 어떻게 숨기나요?</h3>
   <p><b>답변:</b> 유저스크립트를 비활성화한 후 페이지를 새로고침하세요.</p>

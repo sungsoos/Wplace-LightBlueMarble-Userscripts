@@ -43,7 +43,7 @@
         const GM_string = "{addStyle: " + GM.addStyle + ", getValue: " + GM.getValue + ", setValue: " + GM.setValue + "}";
         const GM_info = {
             "script": {
-                "name": "블루 마블",
+                "name": "하늘 구슬",
                 "version": content.match(/@version\s+([\d.]+)/)[1],
             }
         };

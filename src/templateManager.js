@@ -122,7 +122,7 @@ export default class TemplateManager {
    */
   async createJSON() {
     return {
-      "whoami": this.name.replace(' ', ''), // Name of userscript without spaces
+      "whoami": "BlueMarble", // Name of userscript without spaces
       "scriptVersion": this.version, // Version of userscript
       "schemaVersion": this.templatesVersion, // Version of JSON schema
       "templates": {} // The templates
@@ -823,17 +823,36 @@ export default class TemplateManager {
 
 
   /** Imports the JSON object, and appends it to any JSON object already loaded
-   * @param {string} json - The JSON string to parse
+   * @param {string|object} json - The JSON string or object to parse
    */
-  importJSON(json) {
+  async importJSON(json) {
+    if (typeof json === 'string') {
+      try {
+        json = JSON.parse(json);
+      } catch {
+        json = null;
+      }
+    }
 
     console.log(`Importing JSON...`);
     console.log(json);
 
-    // If the passed in JSON is a Blue Marble template object...
-    if (json?.whoami == 'BlueMarble') {
+    // If the passed in JSON is a valid template object
+    const isBlueMarble = json && (
+      json.whoami === 'BlueMarble' ||
+      json.whoami === '하늘구슬' ||
+      json.whoami === this.name?.replace(/\s+/g, '') ||
+      (typeof json.templates === 'object' && json.templates !== null)
+    );
+
+    if (isBlueMarble) {
       this.templatesJSON = json;
-      this.#parseBlueMarble(json); // ...parse the template object as Blue Marble
+      if (!this.templatesJSON.templates || typeof this.templatesJSON.templates !== 'object') {
+        this.templatesJSON.templates = {};
+      }
+      await this.#parseBlueMarble(json); // Parse template object
+    } else {
+      this.templatesJSON = await this.createJSON();
     }
   }
 

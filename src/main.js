@@ -306,7 +306,7 @@ GM.getValue('bmTemplates', '{}').then(async storageTemplatesValue => {
   }
 
   console.log(storageTemplates);
-  templateManager.importJSON(storageTemplates); // Loads the templates
+  await templateManager.importJSON(storageTemplates); // Loads the templates
 
   await buildOverlayMain(); // Builds the main overlay
 
@@ -751,7 +751,7 @@ async function buildOverlayMain() {
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'top: 10px; right: 75px;'})
     .addDiv({'id': 'bm-contain-header'})
       .addDiv({'id': 'bm-bar-drag'}).buildElement()
-      .addImg({'alt': '블루 마블 아이콘 - 눌러서 최소화/최대화', 'src': 'https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
+      .addImg({'alt': '하늘 구슬 아이콘 - 눌러서 최소화/최대화', 'src': 'https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
         (instance, img) => {
           /** Click event handler for overlay minimize/maximize functionality.
            * 
