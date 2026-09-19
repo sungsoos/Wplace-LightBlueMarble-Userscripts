@@ -3,7 +3,7 @@ name: 범프, 빌드, 릴리즈
 on:
   push:
     branches:
-      - custom-improve
+      - main
   workflow_dispatch:
 
 
@@ -77,3 +77,16 @@ jobs:
           echo "Compression: $percentage"
           badge_url="https://img.shields.io/badge/%EC%95%95%EC%B6%95%EB%A5%A0-${percentage}%25-blue"
           sed -i -E 's#https://img.shields.io/badge/%EC%95%95%EC%B6%95%EB%A5%A0-[^"]*#'"$badge_url"'#' docs/README.md
+
+      - name: 커밋 & 푸시
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f dist/
+          git add docs/README.md
+          if git diff --staged --quiet; then
+            echo "변경 사항이 없어 커밋하지 않습니다."
+          else
+            git commit -m "chore: build userscript and update docs [skip ci]"
+            git push origin main
+          fi
