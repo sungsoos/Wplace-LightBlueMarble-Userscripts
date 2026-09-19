@@ -3,10 +3,14 @@
 /* The entire overlay */
 #bm-overlay {
   position: fixed;
-  background-color: rgba(21, 48, 99, 0.8);
-  color: white;
+  background-color: rgba(36, 39, 58, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #cad3f5;
   padding: 10px;
-  border-radius: 8px;
+  border: 1px solid rgba(183, 189, 248, 0.2);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(24, 25, 38, 0.5);
   z-index: 9000;
   transition: all 0.3s ease, transform 0s;
   max-width: 300px;
@@ -29,6 +33,12 @@
   transition: opacity 0.2s ease, height 0.2s ease;
 }
 
+#bm-overlay hr {
+  border: none;
+  border-top: 1px solid rgba(110, 115, 141, 0.3);
+  margin: 0.5em 0;
+}
+
 /* The entire overlay BUT it is cascading */
 div#bm-overlay {
   /* Font stack is as follows:
@@ -40,17 +50,18 @@ div#bm-overlay {
    * Last resort (Arial) */
   /* font-family: 'Roboto Mono', 'Courier New', 'Monaco', 'DejaVu Sans Mono', monospace, 'Arial'; */
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Monaco', 'DejaVu Sans', sans-serif;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
 }
 
 /* The drag bar */
 #bm-bar-drag {
   margin-bottom: 0.5em;
   /* For background circles, width & height should be odd, cx & cy should be half of width & height, and r should be less than or equal to cx & cy */
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="5" height="5"><circle cx="3" cy="3" r="1.5" fill="CornflowerBlue" /></svg>') repeat;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="5" height="5"><circle cx="3" cy="3" r="1.5" fill="%238aadf4" /></svg>') repeat;
   cursor: grab;
   width: 100%;
   height: 1em;
+  opacity: 0.8;
 }
 
 /* When the overlay is being dragged */
@@ -120,12 +131,14 @@ div#bm-overlay {
   font-size: x-large;
   font-weight: bold;
   vertical-align: middle;
+  color: #cad3f5;
 }
 
 /* Checkboxes in the automation container */
 #bm-contain-automation input[type="checkbox"] {
   vertical-align: middle;
   flex: 0 0 auto; /* Prevents the checkbox from growing/shrinking */
+  accent-color: #8aadf4;
 }
 
 #bm-contain-automation label > input[type="checkbox"] {
@@ -139,13 +152,23 @@ div#bm-overlay {
 
 /* Question Mark button */
 .bm-help {
-  border: white 1px solid;
+  border: 1px solid rgba(138, 173, 244, 0.4);
+  background-color: rgba(54, 58, 79, 0.8);
+  color: #cad3f5;
   height: 1.5em;
   width: 1.5em;
   margin-top: 2px;
   text-align: center;
-  line-height: 1em;
+  line-height: 1.3em;
+  border-radius: 6px;
   padding: 0 !important; /* Overrides the padding in "#bm-overlay button" */
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.bm-help:hover {
+  background-color: #494d64;
+  border-color: #8aadf4;
 }
 
 /* Pin button */
@@ -157,7 +180,7 @@ div#bm-overlay {
 #bm-button-coords svg {
   width: 50%;
   margin: 0 auto;
-  fill: #111;
+  fill: #181926;
 }
 
 /* Container for action buttons, that is inside the action button container */
@@ -184,9 +207,18 @@ div:has(> #bm-button-teleport) {
   -moz-appearance: textfield;
   width: 5.5ch;
   margin-left: 1ch;
-  background-color: rgba(0, 0, 0, 0.2);
-  padding: 0 0.5ch;
+  border: 1px solid rgba(110, 115, 141, 0.3);
+  border-radius: 6px;
+  background-color: rgba(30, 32, 48, 0.7);
+  color: #cad3f5;
+  padding: 1px 0.5ch;
   font-size: small;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+#bm-contain-coords input[type="number"]:focus {
+  border-color: #8aadf4;
 }
 
 /* Removes scroll bar on tile & pixel input fields */
@@ -237,10 +269,20 @@ input[type="file"][id*="template"] {
 /* Output status area */
 #bm-output-status {
   font-size: small;
-  background-color: rgba(0, 0, 0, 0.2);
-  padding: 0 0.5ch;
+  background-color: rgba(30, 32, 48, 0.7);
+  color: #cad3f5;
+  border: 1px solid rgba(110, 115, 141, 0.3);
+  border-radius: 6px;
+  padding: 4px 0.5ch;
   height: 3.75em;
   width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+#bm-output-status:focus {
+  border-color: #8aadf4;
 }
 
 /* The action buttons below the status textarea */
@@ -252,7 +294,7 @@ input[type="file"][id*="template"] {
 /* All small elements */
 #bm-overlay small {
   font-size: x-small;
-  color: lightgray;
+  color: #a5adcb;
 }
 
 /* The elements that need spacing from each-other */
@@ -274,27 +316,32 @@ input[type="file"][id*="template"] {
 }
 
 #bm-user-charges .bm-charge-countdown, #bm-user-suspend .bm-suspend-countdown {
-  color: orange;
+  color: #f5a97f;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
 
 #bm-user-charges .bm-charge-count, #bm-user-suspend-reason .bm-suspend-reason {
-  color: lightgray;
+  color: #b8c0e0;
   font-size: 0.8em;
 }
 
 #bm-user-suspend, #bm-user-suspend-reason {
-  color: salmon;
+  color: #ed8796;
 }
 
 /* All overlay buttons */
 #bm-overlay button {
-  background-color: #144eb9;
-  border-radius: 1em;
-  padding: 0 0.75ch;
+  background-color: #8aadf4;
+  color: #181926;
+  border: none;
+  border-radius: 6px;
+  padding: 2px 0.85ch;
   font-size: small;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
 }
 
 /* Select File Button wrapped by span */
@@ -304,36 +351,48 @@ input[type="file"][id*="template"] {
 
 /* All overlay selection boxes */
 #bm-overlay select {
-  border-width: 1px;
-  border-radius: 1em;
-  padding: 0 0.75ch;
+  border: 1px solid rgba(110, 115, 141, 0.4);
+  border-radius: 6px;
+  padding: 2px 0.75ch;
   font-size: small;
+  background-color: #363a4f;
+  color: #cad3f5;
+  outline: none;
 }
 
 /* Prevent white on white background */
 #bm-overlay select option {
-  background-color: rgba(21, 48, 99, 0.8);
+  background-color: #24273a;
+  color: #cad3f5;
 }
 
 /* All overlay buttons when hovered/focused */
 #bm-overlay button:hover, #bm-overlay button:focus-visible {
-  background-color: #1061e5;
+  background-color: #b7bdf8;
 }
 
 /* All overlay buttons when pressed (plus disabled color) */
-#bm-overlay button:active
-#bm-overlay button:disabled {
-  background-color: #2e97ff;
+#bm-overlay button:active {
+  background-color: #7dc4e4;
 }
 
 /* All overlay buttons when disabled */
 #bm-overlay button:disabled {
+  background-color: #494d64;
+  color: #8087a2;
+  cursor: not-allowed;
   text-decoration: line-through;
 }
 
 /* All details summary */
 #bm-overlay details > summary {
   font-size: small;
+  cursor: pointer;
+  color: #b8c0e0;
+}
+
+#bm-overlay details > summary:hover {
+  color: #cad3f5;
 }
 
 /* All checkbox labels in user settings */

@@ -1,5 +1,5 @@
 (function () {
-    fetch("https://raw.githubusercontent.com/sungsoos/Wplace-BlueMarble-Userscripts-kr/custom-improve/dist/BlueMarble.user.js").then(function (response) {
+    fetch("https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js").then(function (response) {
         return response.text();
     }).then(function (content) {
         const GM = {

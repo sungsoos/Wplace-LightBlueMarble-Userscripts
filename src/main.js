@@ -721,7 +721,7 @@ async function buildOverlayMain() {
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'top: 10px; right: 75px;'})
     .addDiv({'id': 'bm-contain-header'})
       .addDiv({'id': 'bm-bar-drag'}).buildElement()
-      .addImg({'alt': '블루 마블 아이콘 - 눌러서 최소화/최대화', 'src': 'https://raw.githubusercontent.com/sungsoos/Wplace-BlueMarble-Userscripts-kr/custom-improve/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
+      .addImg({'alt': '블루 마블 아이콘 - 눌러서 최소화/최대화', 'src': 'https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
         (instance, img) => {
           /** Click event handler for overlay minimize/maximize functionality.
            * 
@@ -1550,7 +1550,7 @@ async function buildOverlayMain() {
           }).buildElement()
         .buildElement()
         .addDiv({'id': 'bm-footer'})
-          .addSmall({'textContent': `SwingTheVine 제작 | TWY 포크 | sungsoos 번역`, 'style': 'margin-top: auto;'}).buildElement()
+          .addSmall({'textContent': `SwingTheVine 제작 | TWY 원본 포크 | sungsoos 번역 & 포크`, 'style': 'margin-top: auto;'}).buildElement()
         .buildElement()
       .buildElement()
     .buildElement()
