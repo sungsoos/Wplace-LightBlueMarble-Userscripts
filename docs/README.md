@@ -72,7 +72,7 @@
 <a href="" target="_blank" rel="noopener noreferrer"><img alt="총 패치" src="https://img.shields.io/badge/%EC%B4%9D%20%ED%8C%A8%EC%B9%98%EB%93%A4-503-black?style=flat"></a>
 <a href="" target="_blank" rel="noopener noreferrer"><img alt="총 코드 줄" src="https://tokei.rs/b1/github/sungsoos/Wplace-LightBlueMarble-Userscripts?category=code"></a>
 <a href="" target="_blank" rel="noopener noreferrer"><img alt="총 주석" src="https://tokei.rs/b1/github/sungsoos/Wplace-LightBlueMarble-Userscripts?category=comments"></a>
-<a href="" target="_blank" rel="noopener noreferrer"><img alt="압축률" src="https://img.shields.io/badge/%EC%95%95%EC%B6%95%EB%A5%A0-66.60%25-blue"></a>
+<a href="" target="_blank" rel="noopener noreferrer"><img alt="압축률" src="https://img.shields.io/badge/%EC%95%95%EC%B6%95%EB%A5%A0-65.99%25-blue"></a>
 <a href="" target="_blank" rel="noopener noreferrer"><img alt="리포지토리 크기" src="https://img.shields.io/github/repo-size/sungsoos/Wplace-LightBlueMarble-Userscripts?label=%EB%A6%AC%ED%8F%AC%EC%A7%80%ED%86%A0%EB%A6%AC%20%ED%81%AC%EA%B8%B0"></a>
 <a href="" target="_blank" rel="noopener noreferrer"><img alt="방문자" src="https://img.shields.io/badge/%EB%B0%A9%EB%AC%B8%EC%9E%90-439_667-gainsboro?style=flat"></a>
 <a href="" target="_blank" rel="noopener noreferrer"><img alt="다운로드 수" src="https://img.shields.io/github/downloads/sungsoos/Wplace-LightBlueMarble-Userscripts/total.svg?label=%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C%20%EC%88%98"></a>
