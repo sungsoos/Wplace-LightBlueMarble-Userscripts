@@ -452,7 +452,7 @@ function createSidebarButton() {
   btn.className = 'btn btn-sm btn-circle bm-sidebar-btn';
 
   const icon = document.createElement('img');
-  icon.src = 'https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/assets/Favicon.png';
+  icon.src = 'https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/refs/heads/main/dist/assets/Favicon.png';
   icon.alt = '하늘 구슬';
   btn.appendChild(icon);
 
@@ -759,7 +759,7 @@ async function buildOverlayMain() {
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'top: 10px; right: 75px;'})
     .addDiv({'id': 'bm-contain-header'})
       .addDiv({'id': 'bm-bar-drag'}).buildElement()
-      .addImg({'alt': '하늘 구슬 아이콘 - 눌러서 최소화/최대화', 'src': 'https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
+      .addImg({'alt': '하늘 구슬 아이콘 - 눌러서 최소화/최대화', 'src': 'https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/refs/heads/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
         (instance, img) => {
           /** Click event handler for overlay minimize/maximize functionality.
            * 

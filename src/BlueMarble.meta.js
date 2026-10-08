@@ -9,9 +9,9 @@
 // @license      MPL-2.0
 // @supportURL   https://discord.gg/tpeBPy46hf
 // @homepageURL  https://bluemarble.lol/
-// @icon         https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/assets/Favicon.png
-// @updateURL    https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js
-// @downloadURL  https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js
+// @icon         https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/refs/heads/main/dist/assets/Favicon.png
+// @updateURL    https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/refs/heads/main/dist/BlueMarble.user.js
+// @downloadURL  https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/refs/heads/main/dist/BlueMarble.user.js
 // @match        https://wplace.live/*
 // @run-at       document-start
 // @grant        GM.addStyle

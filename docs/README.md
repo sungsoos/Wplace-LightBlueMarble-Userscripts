@@ -194,7 +194,7 @@
         <br>
         <img alt="'개발자 모드'와 '사용자 스크립트 허용'을 활성화하세요" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/ComputerChromeInstall3.png"></li>
         <li>'사용자 스크립트 허용'을 활성화하세요.</li>
-        <li><strong>원클릭 설치:</strong> 이 링크를 눌러 하늘 구슬을 바로 설치하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>하늘 구슬 설치</strong></a>
+        <li><strong>원클릭 설치:</strong> 이 링크를 눌러 하늘 구슬을 바로 설치하세요: <a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/refs/heads/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer"><strong>하늘 구슬 설치</strong></a>
         <br>
         TamperMonkey가 유저스크립트를 자동으로 감지하고 설치 여부를 묻습니다.</li>
         <li><a href="https://wplace.live/" target="_blank" rel="noopener noreferrer">wplace.live</a> 웹페이지를 새로고침하세요.</li>
@@ -215,7 +215,7 @@
         <li>'개발자 모드'를 활성화하세요.
         <br>
         <img alt="'개발자 모드'를 활성화하세요" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/ComputerEdgeInstall3.png"></li>
-        <li><a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer">BlueMarble.user.js</a> 파일을 다운로드하세요.</li>
+        <li><a href="https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/refs/heads/main/dist/BlueMarble.user.js" target="_blank" rel="noopener noreferrer">BlueMarble.user.js</a> 파일을 다운로드하세요.</li>
         <li>TamperMonkey 대시보드를 여세요.
         <br>
         <img alt="TamperMonkey '대시보드'로 들어가세요" src="https://github.com/sungsoos/Wplace-LightBlueMarble-Userscripts/blob/main/docs/assets/ComputerEdgeInstall4.png"></li>

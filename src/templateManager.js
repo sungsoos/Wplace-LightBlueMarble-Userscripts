@@ -1,6 +1,6 @@
 import Template from "./Template";
-import { base64ToUint8, numberToEncoded, cleanUpCanvas, rgbToKey, rgbToMeta, sortByOptions, testCanvasSize, getCurrentColor, sleep, base64PNGSize, calculateTileKey, countPixels } from "./utils";
-import { themeList, addTemplateCanvas, removeLayer, doAfterMapFound, forceRefreshTiles } from './utilsMaptiler.js';
+import { base64PNGSize, base64ToUint8, calculateTileKey, cleanUpCanvas, countPixels, getCurrentColor, numberToEncoded, rgbToKey, rgbToMeta, sortByOptions, testCanvasSize } from "./utils";
+import { addTemplateCanvas, doAfterMapFound, forceRefreshTiles, removeLayer, themeList } from './utilsMaptiler.js';
 
 /** Manages the template system.
  * This class handles all external requests for template modification, creation, and analysis.
@@ -24,7 +24,7 @@ import { themeList, addTemplateCanvas, removeLayer, doAfterMapFound, forceRefres
  *     },
  *     "1 $Z": {
  *       "name": "My Template",
- *       "URL": "https://github.com/sungsoos/Wplace-BlueMarble-Userscripts-kr/custom-improve/dist/assets/Favicon.png",
+ *       "URL": "https://raw.githubusercontent.com/sungsoos/Wplace-LightBlueMarble-Userscripts/refs/heads/main/dist/assets/Template.png",
  *       "URLType": "template",
  *       "enabled": false,
  *       "tiles": {
