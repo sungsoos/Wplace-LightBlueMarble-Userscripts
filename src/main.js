@@ -1,13 +1,13 @@
 /** @file The main file. Everything in the userscript is executed from here.
  * @since 0.0.0
  */
-import "./polyfill.js";
 import Overlay from './Overlay.js';
+import "./polyfill.js";
 // import Observers from './observers.js';
 import ApiManager from './apiManager.js';
 import TemplateManager from './templateManager.js';
-import { consoleLog, consoleWarn, selectAllCoordinateInputs, rgbToMeta, getOverlayCoords, sortByOptions, sortByDisplayNames, getCurrentColor } from './utils.js';
-import { getCenterGeoCoords, getPixelPerWplacePixel, forceRefreshTiles, removeLayer, themeList, setTheme, isMapTilerLoaded, teleportToTileCoords, teleportToGeoCoords, coordsTileCoordsToGeoCoords, coordsGeoCoordsToTileCoords, doAfterMapFound, panMap, setZoom, getCurrentTileSize} from './utilsMaptiler.js';
+import { consoleLog, consoleWarn, getCurrentColor, getOverlayCoords, rgbToMeta, selectAllCoordinateInputs, sortByDisplayNames, sortByOptions } from './utils.js';
+import { coordsGeoCoordsToTileCoords, coordsTileCoordsToGeoCoords, doAfterMapFound, forceRefreshTiles, getCenterGeoCoords, getCurrentTileSize, getPixelPerWplacePixel, isMapTilerLoaded, panMap, removeLayer, setTheme, setZoom, teleportToGeoCoords, teleportToTileCoords, themeList } from './utilsMaptiler.js';
 // import { getCenterGeoCoords, addTemplate } from './utilsMaptiler.js';
 
 const name = GM_info.script.name.toString(); // Name of userscript
@@ -386,6 +386,16 @@ GM.getValue('bmTemplates', '{}').then(async storageTemplatesValue => {
   consoleLog(`%c${name}%c (${version}) userscript has loaded!`, 'color: cornflowerblue;', '');
 });
 
+/** Helper to find the reference button for UI buttons (desktop or mobile) */
+function getButtonAnchor() {
+  // yea i found out this works brun
+  const ref = document.querySelector('div.top-safe-2:nth-child(3) > button:nth-child(1)');
+  if (ref && ref.parentNode) {
+    return { container: ref.parentNode, ref: ref };
+  }
+  return null;
+}
+
 /** Add the zoom level buttons if they do not exist.
  * @since 0.86.15
  */
@@ -393,10 +403,9 @@ function createZoomButtons() {
   // If the 1x zoom button does not exist, we make new zoom level buttons
   const zoom1 = document.getElementById('BM-zoom-1x');
   if (zoom1) return;
-  const ref = Array.from(document.querySelectorAll(".gap-1>.btn[title]")).slice(-1)[0];
-  if (!ref) return;
-  const container = ref.parentNode;
-  if (!container) return;
+  const anchor = getButtonAnchor();
+  if (!anchor) return;
+  const { container, ref } = anchor;
 
   const isShown = templateManager.areIntegerZoomButtonsShown();
 
@@ -424,19 +433,18 @@ function createZoomButtons() {
       setZoom(Math.log2(4000 * actualZoomLevel / window['devicePixelRatio']));
     };
 
-    container.appendChild(zoomBtn); // Adds the zoom level button
+    ref.insertAdjacentElement('afterend', zoomBtn);
   };
 
-  [0, 1, 2, 3, 4, 5, 10, 25].forEach( zoom => createZoomButton(zoom) );
+  [0, 1, 2, 3, 4, 5, 10, 25].reverse().forEach( zoom => createZoomButton(zoom) );
 }
 
 function createSidebarButton() {
   const sidebarBtn = document.getElementById('BM-sidebar-toggle');
   if (sidebarBtn) return;
-  const ref = Array.from(document.querySelectorAll(".gap-1>.btn[title]")).slice(-1)[0];
-  if (!ref) return;
-  const container = ref.parentNode;
-  if (!container) return;
+  const anchor = getButtonAnchor();
+  if (!anchor) return;
+  const { container, ref } = anchor;
 
   const btn = document.createElement('button');
   btn.id = 'BM-sidebar-toggle';
@@ -456,7 +464,7 @@ function createSidebarButton() {
     btn.classList.toggle('active', isHidden);
   };
 
-  container.appendChild(btn);
+  ref.insertAdjacentElement('afterend', btn);
 }
 
 /** Observe the black color, and add the "Move" button.
