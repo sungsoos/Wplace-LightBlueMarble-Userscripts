@@ -388,6 +388,9 @@ export default class ApiManager {
         btnLineTemplate.classList.add("btn-soft"); // not the primary button
         btnLineTemplate.style.marginLeft = "12px";
         btnLineTemplate.style.marginBottom = "8px";
+        btnLineTemplate.style.width = "fit-content";
+        btnLineTemplate.style.paddingLeft = "6px";
+        btnLineTemplate.style.paddingRight = "6px";
         const pixelInfoContainer = this.getPixelInfoContainer();
         if (!pixelInfoContainer) return;
         pixelInfoContainer.appendChild(btnLineTemplate);
@@ -458,6 +461,9 @@ export default class ApiManager {
         btnCircleTemplate.classList.add("btn-soft"); // not the primary button
         btnCircleTemplate.style.marginLeft = "12px";
         btnCircleTemplate.style.marginBottom = "8px";
+        btnCircleTemplate.style.width = "fit-content";
+        btnCircleTemplate.style.paddingLeft = "6px";
+        btnCircleTemplate.style.paddingRight = "6px";
         const pixelInfoContainer = this.getPixelInfoContainer();
         if (!pixelInfoContainer) return;
         pixelInfoContainer.appendChild(btnCircleTemplate);

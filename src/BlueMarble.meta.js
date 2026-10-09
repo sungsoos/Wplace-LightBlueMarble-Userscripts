@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         하늘 구슬
 // @namespace    https://github.com/SwingTheVine/
-// @version      0.87.23
+// @version      0.87.25
 // @description  입맛대로 망쳐놓은 t-wy/Wplace-BlueMarble-Userscripts.
 // @author       SwingTheVine
 // @author       TWY
