@@ -486,24 +486,25 @@ function observeBlack() {
     if (!move) {
       move = document.createElement('button');
       move.id = 'bm-button-move';
-      move.textContent = '움직이기 ↑';
+      move.textContent = '↑';
       move.className = 'btn btn-soft';
       move.onclick = function() {
         const roundedBox = this.parentNode.parentNode.parentNode.parentNode; // Obtains the rounded box
-        const shouldMoveUp = (this.textContent == '움직이기 ↑');
+        const shouldMoveUp = (this.textContent == '↑');
         roundedBox.parentNode.className = roundedBox.parentNode.className.replace(shouldMoveUp ? 'bottom' : 'top', shouldMoveUp ? 'top' : 'bottom'); // Moves the rounded box to the top
         roundedBox.style.borderTopLeftRadius = shouldMoveUp ? '0px' : 'var(--radius-box)';
         roundedBox.style.borderTopRightRadius = shouldMoveUp ? '0px' : 'var(--radius-box)';
         roundedBox.style.borderBottomLeftRadius = shouldMoveUp ? 'var(--radius-box)' : '0px';
         roundedBox.style.borderBottomRightRadius = shouldMoveUp ? 'var(--radius-box)' : '0px';
-        this.textContent = shouldMoveUp ? '움직이기 ↓' : '움직이기 ↑';
+        this.textContent = shouldMoveUp ? '↓' : '↑';
       }
 
       // Attempts to find the "Paint Pixel" element for anchoring
-      const fourthParent = black.parentNode.parentNode.parentNode.parentNode;
-      const fifthParent = fourthParent.parentNode;
-      const paintPixel = fourthParent.querySelector('h2');
-      const container = paintPixel ? paintPixel.parentNode : fifthParent.querySelector('h2 + div');
+      // const fourthParent = black.parentNode.parentNode.parentNode.parentNode;
+      // const fifthParent = fourthParent.parentNode;
+      // const paintPixel = fourthParent.querySelector('h2');
+      // const container = paintPixel ? paintPixel.parentNode : fifthParent.querySelector('h2 + div');
+      const container = document.querySelector('.paint-tools');
 
       if (container) {
         container.appendChild(move); // Adds the move button
@@ -685,10 +686,11 @@ function observeBlack() {
         paint2.className = 'btn btn-soft';
         paint2.onclick = () => paint_onclick(false);
         // Attempts to find the "Paint Pixel" element for anchoring
-        const fourthParent = black.parentNode.parentNode.parentNode.parentNode;
-        const fifthParent = fourthParent.parentNode;
-        const paintPixel = fourthParent.querySelector('h2');
-        const container = paintPixel ? paintPixel.parentNode : fifthParent.querySelector('h2 + div');
+        //const fourthParent = black.parentNode.parentNode.parentNode.parentNode;
+        //const fifthParent = fourthParent.parentNode;
+        //const paintPixel = fourthParent.querySelector('h2');
+        //const container = paintPixel ? paintPixel.parentNode : fifthParent.querySelector('h2 + div');
+        const container = document.querySelector('.paint-tools')
         
         if (container) {
           container.appendChild(paint); // Adds the paint button
