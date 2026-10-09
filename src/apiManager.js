@@ -5,7 +5,7 @@
  */
 
 import TemplateManager from "./templateManager.js";
-import { consoleError, escapeHTML, numberToEncoded, serverTPtoDisplayTP, cleanUpCanvas, copyToClipboard, getOverlayCoords, areOverlayCoordsFilledAndValid, calculateTopLeftAndSize, downloadTile, testCanvasSize, consoleLog, lineBitmap, getCurrentColor, colorpalette, midPointDistance, circleBitmap, calculateTileKey } from "./utils.js";
+import { areOverlayCoordsFilledAndValid, calculateTileKey, calculateTopLeftAndSize, circleBitmap, colorpalette, consoleLog, copyToClipboard, downloadTile, getCurrentColor, getOverlayCoords, lineBitmap, midPointDistance, numberToEncoded, testCanvasSize } from "./utils.js";
 import { coordsTileCoordsToGeoCoords, overrideRandom } from "./utilsMaptiler.js";
 
 export default class ApiManager {
@@ -256,6 +256,8 @@ export default class ApiManager {
   getPixelInfoContainer() {
     return document.querySelector(
       ".absolute.bottom-0>.rounded-t-box>div"
+    ) || document.querySelector(
+      ".game-floating-panel>.game-panel-surface>.selected-pixel"
     );
   }
 
