@@ -678,12 +678,18 @@ function observeBlack() {
         paint.id = 'bm-button-paint';
         paint.textContent = '칠하기';
         paint.className = 'btn btn-soft';
+        paint.style.width = "fit-content";
+        paint.style.paddingLeft = "6px";
+        paint.style.paddingRight = "6px";
         paint.onclick = () => paint_onclick(true);
 
         const paint2 = document.createElement('button');
         paint2.id = 'bm-button-paint';
         paint2.textContent = '화면 채우기';
         paint2.className = 'btn btn-soft';
+        paint2.style.width = "fit-content";
+        paint2.style.paddingLeft = "6px";
+        paint2.style.paddingRight = "6px";
         paint2.onclick = () => paint_onclick(false);
         // Attempts to find the "Paint Pixel" element for anchoring
         //const fourthParent = black.parentNode.parentNode.parentNode.parentNode;
