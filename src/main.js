@@ -484,18 +484,35 @@ function observeBlack() {
 
     // If the move button does not exist, we make a new one
     if (!move) {
+      // <button id="bm-button-move" class="btn btn-circle btn-ghost sm:btn-sm size-11 shrink-0 svelte-bcvsi8" style="width: 32px; height: 32px; padding: 0px; min-height: 0px; font-size: inherit">↑</button>
       move = document.createElement('button');
       move.id = 'bm-button-move';
       move.textContent = '↑';
-      move.className = 'btn btn-soft';
+      move.className = 'btn btn-circle btn-ghost sm:btn-sm size-11 shrink-0 svelte-bcvsi8';
+      move.style.width = '32px';
+      move.style.height = '32px';
+      move.style.padding = '0px';
+      move.style.minHeight = '0px';
+      move.style.fontSize = 'inherit';
       move.onclick = function() {
-        const roundedBox = this.parentNode.parentNode.parentNode.parentNode; // Obtains the rounded box
+        const roundedBox = document.querySelector('.game-floating-panel');
+        const dialog = document.querySelector('.pixel-instruction');
         const shouldMoveUp = (this.textContent == '↑');
-        roundedBox.parentNode.className = roundedBox.parentNode.className.replace(shouldMoveUp ? 'bottom' : 'top', shouldMoveUp ? 'top' : 'bottom'); // Moves the rounded box to the top
-        roundedBox.style.borderTopLeftRadius = shouldMoveUp ? '0px' : 'var(--radius-box)';
-        roundedBox.style.borderTopRightRadius = shouldMoveUp ? '0px' : 'var(--radius-box)';
-        roundedBox.style.borderBottomLeftRadius = shouldMoveUp ? 'var(--radius-box)' : '0px';
-        roundedBox.style.borderBottomRightRadius = shouldMoveUp ? 'var(--radius-box)' : '0px';
+        if (shouldMoveUp) {
+          roundedBox.style.top = 'calc(max(0px, env(safe-area-inset-bottom, 0px) - max(0px, 100vh - 100dvh)) + 18px)'; // 'calc(max(0px, env(safe-area-inset-top, 0px) - max(0px, 100vh - 100dvh)) + 18px);'; // hardcorecoding
+          roundedBox.style.bottom = 'auto';
+
+          // i hate copilot preventing autocomplete
+          dialog.style.bottom = 'calc(var(--spacing) * -15)';
+          dialog.style.top = 'auto';
+        } else {
+          roundedBox.style.bottom = 'calc(var(--safe-area-inset-bottom) + 18px)'; // hardcoding
+          roundedBox.style.top = 'auto';
+
+          // i uninstalled it =D
+          dialog.style.bottom = '';
+          dialog.style.top = 'calc(var(--spacing) * -15)';
+        }
         this.textContent = shouldMoveUp ? '↓' : '↑';
       }
 
@@ -504,10 +521,14 @@ function observeBlack() {
       // const fifthParent = fourthParent.parentNode;
       // const paintPixel = fourthParent.querySelector('h2');
       // const container = paintPixel ? paintPixel.parentNode : fifthParent.querySelector('h2 + div');
-      const container = document.querySelector('.paint-tools');
+      
+      // i will not use this
+      //const container = document.querySelector('.paint-tools');
+
+      const container = document.querySelector('.paint-layout-dismiss'); // i will use this
 
       if (container) {
-        container.appendChild(move); // Adds the move button
+        container.prepend(move);
       }
     }
 
